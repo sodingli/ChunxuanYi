@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>椿萱·颐 - 人脸检测Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            padding: 30px;
+            max-width: 800px;
+            width: 100%;
+        }
+        
+        .video-container {
+            position: relative;
+            width: 100%;
+            margin-bottom: 20px;
+            border-radius: 15px;
+            overflow: hidden;
+            background: #34495e;
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .placeholder {
+            color: white;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .placeholder .icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            flex: 1;
+            min-width: 150px;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        #startBtn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        #startBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        #stopBtn {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        #stopBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(245, 87, 108, 0.4);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .status {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .status h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        
+        .status-label {
+            color: #7f8c8d;
+            font-weight: 500;
+        }
+        
+        .status-value {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .emotion-bar {
+            margin-top: 15px;
+        }
+        
+        .emotion-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .emotion-label {
+            width: 80px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        
+        .emotion-progress {
+            flex: 1;
+            height: 20px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0 10px;
+        }
+        
+        .emotion-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            border-radius: 10px;
+        }
+        
+        .emotion-value {
+            width: 50px;
+            text-align: right;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #7f8c8d;
+            padding: 20px;
+        }
+        
+        .error {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌸 椿萱·颐</h1>
+        <p>人脸检测 & 情绪识别 Demo</p>
+    </div>
+    
+    <div class="container">
+        <div class="video-container" id="videoContainer">
+            <div class="placeholder" id="placeholder">
+                <div class="icon">📷</div>
+                <p>点击"开启摄像头"开始检测</p>
+            </div>
+            <video id="video" autoplay muted playsinline style="display:none;"></video>
+            <canvas id="canvas"></canvas>
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn">📷 开启摄像头</button>
+            <button id="stopBtn" disabled>⏹️ 关闭摄像头</button>
+        </div>
+        
+        <div class="status">
+            <h3>📊 检测结果</h3>
+            <div class="status-item">
+                <span class="status-label">人脸检测</span>
+                <span class="status-value" id="faceStatus">未检测</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">检测到人脸数</span>
+                <span class="status-value" id="faceCount">0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">情绪状态</span>
+                <span class="status-value" id="emotionStatus">-</span>
+            </div>
+            
+            <div class="emotion-bar" id="emotionBar" style="display:none;">
+                <div class="emotion-item">
+                    <span class="emotion-label">😊 开心</span>
+                    <div class="emotion-progress">
+                        <div class="emotion-fill" id="happyBar" style="width:0%"></div>
+                    </div>
+                    <span class="emotion-value" id="happyValue">0%</span>
+                </div>
+                <div class="emotion-item">
+                    <span class="emotion-label">😢 悲伤</span>
+                    <div class="emotion-progress">
+                        <div class="emotion-fill" id="sadBar" style="width:0%"></div>
+                    </div>
+                    <span class="emotion-value" id="sadValue">0%</span>
+                </div>
+                <div class="emotion-item">
+                    <span class="emotion-label">😠 愤怒</span>
+                    <div class="emotion-progress">
+                        <div class="emotion-fill" id="angryBar" style="width:0%"></div>
+                    </div>
+                    <span class="emotion-value" id="angryValue">0%</span>
+                </div>
+                <div class="emotion-item">
+                    <span class="emotion-label">😨 恐惧</span>
+                    <div class="emotion-progress">
+                        <div class="emotion-fill" id="fearfulBar" style="width:0%"></div>
+                    </div>
+                    <span class="emotion-value" id="fearfulValue">0%</span>
+                </div>
+                <div class="emotion-item">
+                    <span class="emotion-label">😲 惊讶</span>
+                    <div class="emotion-progress">
+                        <div class="emotion-fill" id="surprisedBar" style="width:0%"></div>
+                    </div>
+                    <span class="emotion-value" id="surprisedValue">0%</span>
+                </div>
+                <div class="emotion-item">
+                    <span class="emotion-label">😐 中性</span>
+                    <div class="emotion-progress">
+                        <div class="emotion-fill" id="neutralBar" style="width:0%"></div>
+                    </div>
+                    <span class="emotion-value" id="neutralValue">0%</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="error" id="errorMsg" style="display:none;"></div>
+    </div>
+    
+    <script>
+        // 简化版：使用 face-api.js 进行人脸检测和情绪识别
+        // 这里先用模拟数据演示，实际部署时加载 face-api.js
+        
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const placeholder = document.getElementById('placeholder');
+        
+        let stream = null;
+        let isRunning = false;
+        let animationId = null;
+        
+        // 开启摄像头
+        startBtn.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: 640,
+                        height: 480,
+                        facingMode: 'user'
+                    }
+                });
+                
+                video.srcObject = stream;
+                video.style.display = 'block';
+                placeholder.style.display = 'none';
+                
+                // 设置canvas尺寸
+                canvas.width = video.videoWidth || 640;
+                canvas.height = video.videoHeight || 480;
+                
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                
+                isRunning = true;
+                detectFaces();
+                
+            } catch (err) {
+                showError('无法访问摄像头: ' + err.message);
+            }
+        });
+        
+        // 关闭摄像头
+        stopBtn.addEventListener('click', () => {
+            isRunning = false;
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            
+            video.style.display = 'none';
+            placeholder.style.display = 'block';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            
+            // 清空canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 重置状态
+            document.getElementById('faceStatus').textContent = '未检测';
+            document.getElementById('faceCount').textContent = '0';
+            document.getElementById('emotionStatus').textContent = '-';
+            document.getElementById('emotionBar').style.display = 'none';
+        });
+        
+        // 人脸检测（模拟版 - 实际应调用 face-api.js）
+        function detectFaces() {
+            if (!isRunning) return;
+            
+            // 绘制视频帧
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // 模拟检测结果（实际应使用 face-api.js）
+            const mockDetection = Math.random() > 0.3; // 70%概率检测到人脸
+            
+            if (mockDetection) {
+                // 模拟人脸框位置
+                const x = canvas.width * 0.3 + Math.random() * 50;
+                const y = canvas.height * 0.2 + Math.random() * 30;
+                const w = canvas.width * 0.4;
+                const h = canvas.height * 0.6;
+                
+                // 绘制人脸框
+                ctx.strokeStyle = '#667eea';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x, y, w, h);
+                
+                // 绘制标签
+                ctx.fillStyle = '#667eea';
+                ctx.fillRect(x, y - 25, 80, 25);
+                ctx.fillStyle = 'white';
+                ctx.font = '16px Arial';
+                ctx.fillText('人脸', x + 5, y - 7);
+                
+                // 更新状态
+                document.getElementById('faceStatus').textContent = '✅ 已检测';
+                document.getElementById('faceStatus').style.color = '#27ae60';
+                document.getElementById('faceCount').textContent = '1';
+                
+                // 模拟情绪识别
+                simulateEmotion();
+                
+            } else {
+                document.getElementById('faceStatus').textContent = '未检测到';
+                document.getElementById('faceStatus').style.color = '#e74c3c';
+                document.getElementById('faceCount').textContent = '0';
+                document.getElementById('emotionStatus').textContent = '-';
+                document.getElementById('emotionBar').style.display = 'none';
+            }
+            
+            animationId = requestAnimationFrame(detectFaces);
+        }
+        
+        // 模拟情绪识别
+        function simulateEmotion() {
+            const emotions = {
+                happy: Math.random() * 100,
+                sad: Math.random() * 30,
+                angry: Math.random() * 20,
+                fearful: Math.random() * 15,
+                surprised: Math.random() * 25,
+                neutral: Math.random() * 40
+            };
+            
+            // 归一化
+            const total = Object.values(emotions).reduce((a, b) => a + b, 0);
+            for (let key in emotions) {
+                emotions[key] = (emotions[key] / total * 100).toFixed(1);
+            }
+            
+            // 找到最高情绪
+            let maxEmotion = 'neutral';
+            let maxValue = 0;
+            for (let key in emotions) {
+                if (parseFloat(emotions[key]) > maxValue) {
+                    maxValue = parseFloat(emotions[key]);
+                    maxEmotion = key;
+                }
+            }
+            
+            const emotionMap = {
+                happy: '😊 开心',
+                sad: '😢 悲伤',
+                angry: '😠 愤怒',
+                fearful: '😨 恐惧',
+                surprised: '😲 惊讶',
+                neutral: '😐 中性'
+            };
+            
+            document.getElementById('emotionStatus').textContent = emotionMap[maxEmotion];
+            document.getElementById('emotionBar').style.display = 'block';
+            
+            // 更新进度条
+            document.getElementById('happyBar').style.width = emotions.happy + '%';
+            document.getElementById('happyValue').textContent = emotions.happy + '%';
+            document.getElementById('sadBar').style.width = emotions.sad + '%';
+            document.getElementById('sadValue').textContent = emotions.sad + '%';
+            document.getElementById('angryBar').style.width = emotions.angry + '%';
+            document.getElementById('angryValue').textContent = emotions.angry + '%';
+            document.getElementById('fearfulBar').style.width = emotions.fearful + '%';
+            document.getElementById('fearfulValue').textContent = emotions.fearful + '%';
+            document.getElementById('surprisedBar').style.width = emotions.surprised + '%';
+            document.getElementById('surprisedValue').textContent = emotions.surprised + '%';
+            document.getElementById('neutralBar').style.width = emotions.neutral + '%';
+            document.getElementById('neutralValue').textContent = emotions.neutral + '%';
+        }
+        
+        // 显示错误
+        function showError(msg) {
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.textContent = msg;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

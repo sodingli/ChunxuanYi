@@ -1,0 +1,33 @@
+# 环境变量
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 旧版本文件（已合并到 yi_device_simulator.html）
+yi_device_simulator_v2.html
+yi_device_simulator_v3.html
+yi_device_simulator_v4.html
+emotion_demo_v2.py
+emotion_demo_v3.py
+
+# 配置（含API Key）
+config.js
+
+# 报告文档
+2026-05-13_*.md
