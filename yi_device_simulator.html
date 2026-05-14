@@ -849,6 +849,101 @@
             document.getElementById('emotionBar').style.display = 'none';
         });
 
+        // ============ Emotion-triggered proactive chat ============
+        var emotionBuffer = [];
+        var EMOTION_SAMPLE_INTERVAL = 1000;
+        var EMOTION_TRIGGER_DURATION = 7000;
+        var EMOTION_TRIGGER_THRESHOLD = 0.6;
+        var lastEmotionSampleTime = 0;
+        var emotionTriggered = false;
+        var lastTriggerTime = 0;
+        var TRIGGER_COOLDOWN = 60000;
+
+        var emotionPrompts = {
+            happy: [
+                '爷爷/奶奶看起来心情不错呀！是不是遇到什么开心的事了？',
+                '您笑得真好看，今天一定是个好日子！',
+                '看到您开心，我也高兴！要不要聊聊今天的好事？',
+            ],
+            sad: [
+                '爷爷/奶奶，您看起来有点心事，愿意和我说说吗？',
+                '别难过，我在这里陪着您呢。有什么烦心事可以说出来。',
+                '看您不太开心，要不要听首老歌放松一下？',
+            ],
+            angry: [
+                '爷爷/奶奶，是不是有什么事让您着急了？慢慢说，我听着呢。',
+                '别生气了，气坏身体不值得。跟我说说怎么了？',
+            ],
+            fearful: [
+                '爷爷/奶奶，您是不是有点担心什么？跟我说说，也许我能帮忙。',
+                '别害怕，有我在呢。有什么不放心的可以告诉我。',
+            ],
+            surprised: [
+                '爷爷/奶奶，是什么让您这么惊讶？快跟我说说！',
+            ],
+        };
+
+        function sampleEmotion(expressions) {
+            var now = Date.now();
+            if (now - lastEmotionSampleTime < EMOTION_SAMPLE_INTERVAL) return;
+            lastEmotionSampleTime = now;
+
+            var maxEmotion = 'neutral', maxValue = 0;
+            for (var key in expressions) {
+                if (key === 'neutral' || key === 'disgusted') continue;
+                if (expressions[key] > maxValue) { maxValue = expressions[key]; maxEmotion = key; }
+            }
+
+            if (maxValue >= EMOTION_TRIGGER_THRESHOLD && maxEmotion !== 'neutral') {
+                emotionBuffer.push({ emotion: maxEmotion, value: maxValue, time: now });
+            }
+
+            // Keep only recent samples
+            var cutoff = now - EMOTION_TRIGGER_DURATION;
+            emotionBuffer = emotionBuffer.filter(function(s) { return s.time > cutoff; });
+
+            checkEmotionTrigger();
+        }
+
+        function checkEmotionTrigger() {
+            if (emotionTriggered) return;
+            if (isSpeaking || isListening) return;
+            if (Date.now() - lastTriggerTime < TRIGGER_COOLDOWN) return;
+            if (emotionBuffer.length < 3) return;
+
+            // Check if same emotion dominates recent buffer
+            var counts = {};
+            emotionBuffer.forEach(function(s) {
+                counts[s.emotion] = (counts[s.emotion] || 0) + 1;
+            });
+
+            var dominant = null, maxCount = 0;
+            for (var e in counts) {
+                if (counts[e] > maxCount) { maxCount = counts[e]; dominant = e; }
+            }
+
+            // Need at least 60% of recent samples to be the same emotion
+            if (maxCount / emotionBuffer.length < 0.6) return;
+
+            triggerEmotionChat(dominant);
+        }
+
+        function triggerEmotionChat(emotion) {
+            emotionTriggered = true;
+            lastTriggerTime = Date.now();
+            emotionBuffer = [];
+
+            var prompts = emotionPrompts[emotion];
+            if (!prompts || prompts.length === 0) { emotionTriggered = false; return; }
+
+            var msg = prompts[Math.floor(Math.random() * prompts.length)];
+            addMessage(msg, 'ai');
+            speak(msg);
+            addMemory('颐主动关怀(' + emotion + '): ' + msg, 'proactive');
+
+            setTimeout(function() { emotionTriggered = false; }, TRIGGER_COOLDOWN);
+        }
+
         async function detectLoop() {
             if (!isRunning) return;
 
@@ -882,6 +977,7 @@
                             if (expressions[key] > maxValue) { maxValue = expressions[key]; maxEmotion = key; }
                         }
                         addEmotionRecord(maxEmotion, maxValue);
+                        sampleEmotion(expressions);
                     } else {
                         document.getElementById('faceStatus').textContent = '未检测到';
                         document.getElementById('faceStatus').style.color = '#e74c3c';
@@ -937,6 +1033,11 @@
             startListening();
         }
 
+        var silenceTimer = null;
+        var lastSpeechTime = 0;
+        var finalTranscript = '';
+        var SILENCE_TIMEOUT = 3000;
+
         function startListening() {
             var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
@@ -948,10 +1049,13 @@
                 try { recognition.abort(); } catch (e) {}
             }
 
+            finalTranscript = '';
+            lastSpeechTime = 0;
+
             recognition = new SpeechRecognition();
             recognition.lang = 'zh-CN';
-            recognition.continuous = false;
-            recognition.interimResults = false;
+            recognition.continuous = true;
+            recognition.interimResults = true;
             recognition.maxAlternatives = 1;
 
             recognition.onstart = function() {
@@ -963,14 +1067,24 @@
             };
 
             recognition.onresult = function(event) {
-                var text = event.results[0][0].transcript;
-                if (text && text.trim()) {
-                    messageInput.value = text;
-                    voiceStatus.textContent = '识别到: "' + text + '"';
-                    sendMessage();
-                } else {
-                    voiceStatus.textContent = '未识别到内容，请重试';
+                var interim = '';
+                finalTranscript = '';
+                for (var i = 0; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interim += event.results[i][0].transcript;
+                    }
                 }
+
+                var display = finalTranscript + interim;
+                if (display) {
+                    messageInput.value = display;
+                    voiceStatus.textContent = '识别中: "' + display + '"';
+                }
+
+                lastSpeechTime = Date.now();
+                resetSilenceTimer();
             };
 
             recognition.onerror = function(event) {
@@ -979,16 +1093,24 @@
                     voiceStatus.textContent = '未检测到语音，请重试';
                 } else if (event.error === 'not-allowed') {
                     showError('麦克风权限被拒绝，请在浏览器设置中允许');
-                } else {
+                } else if (event.error !== 'aborted') {
                     voiceStatus.textContent = '语音识别出错: ' + event.error;
                 }
-                stopListening();
+                cleanupListening();
             };
 
             recognition.onend = function() {
-                isListening = false;
-                voiceBtn.textContent = '🎤 语音';
-                listeningIndicator.classList.remove('active');
+                var text = finalTranscript || messageInput.value.trim();
+                if (text && isListening) {
+                    voiceStatus.textContent = '识别完成: "' + text + '"';
+                    messageInput.value = text;
+                    isListening = false;
+                    listeningIndicator.classList.remove('active');
+                    voiceBtn.textContent = '🎤 语音';
+                    sendMessage();
+                } else {
+                    cleanupListening();
+                }
             };
 
             try {
@@ -999,10 +1121,27 @@
             }
         }
 
+        function resetSilenceTimer() {
+            if (silenceTimer) clearTimeout(silenceTimer);
+            silenceTimer = setTimeout(function() {
+                if (isListening) {
+                    voiceStatus.textContent = '检测到静音，自动发送...';
+                    if (recognition) {
+                        try { recognition.stop(); } catch (e) {}
+                    }
+                }
+            }, SILENCE_TIMEOUT);
+        }
+
         function stopListening() {
+            if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
             if (recognition) {
                 try { recognition.stop(); } catch (e) {}
             }
+        }
+
+        function cleanupListening() {
+            if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
             isListening = false;
             voiceBtn.textContent = '🎤 语音';
             listeningIndicator.classList.remove('active');
