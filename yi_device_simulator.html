@@ -909,7 +909,7 @@
             if (emotionTriggered) return;
             if (isSpeaking || isListening) return;
             if (Date.now() - lastTriggerTime < TRIGGER_COOLDOWN) return;
-            if (emotionBuffer.length < 3) return;
+            if (emotionBuffer.length < 5) return;
 
             // Check if same emotion dominates recent buffer
             var counts = {};
@@ -1024,6 +1024,7 @@
         });
 
         function interruptSpeech() {
+            speakGeneration++;
             speechSynthesis.cancel();
             isSpeaking = false;
             speakingIndicator.classList.remove('active');
@@ -1210,6 +1211,7 @@
 
         // ============ TTS (improved) ============
         var preferredVoice = null;
+        var speakGeneration = 0;
 
         function findBestChineseVoice() {
             var voices = speechSynthesis.getVoices();
@@ -1238,18 +1240,25 @@
         function speak(text) {
             if (!('speechSynthesis' in window)) return;
 
+            speakGeneration++;
+            var myGeneration = speakGeneration;
             speechSynthesis.cancel();
 
             var sentences = text.match(/[^。！？；\n]+[。！？；\n]?/g) || [text];
             var index = 0;
 
+            function finishSpeaking() {
+                if (speakGeneration !== myGeneration) return;
+                isSpeaking = false;
+                speakingIndicator.classList.remove('active');
+                voiceBtn.textContent = '🎤 语音';
+                voiceBtn.classList.remove('speaking');
+                voiceStatus.textContent = '';
+            }
+
             function speakNext() {
                 if (index >= sentences.length) {
-                    isSpeaking = false;
-                    speakingIndicator.classList.remove('active');
-                    voiceBtn.textContent = '🎤 语音';
-                    voiceBtn.classList.remove('speaking');
-                    voiceStatus.textContent = '';
+                    finishSpeaking();
                     return;
                 }
 
@@ -1267,22 +1276,17 @@
 
                 utterance.onend = function() {
                     index++;
+                    if (speakGeneration !== myGeneration) return;
                     if (index < sentences.length) {
                         setTimeout(speakNext, 150);
                     } else {
-                        isSpeaking = false;
-                        speakingIndicator.classList.remove('active');
-                        voiceBtn.textContent = '🎤 语音';
-                        voiceBtn.classList.remove('speaking');
-                        voiceStatus.textContent = '';
+                        finishSpeaking();
                     }
                 };
 
                 utterance.onerror = function() {
-                    isSpeaking = false;
-                    speakingIndicator.classList.remove('active');
-                    voiceBtn.textContent = '🎤 语音';
-                    voiceBtn.classList.remove('speaking');
+                    if (speakGeneration !== myGeneration) return;
+                    finishSpeaking();
                 };
 
                 speechSynthesis.speak(utterance);
