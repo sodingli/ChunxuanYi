@@ -1,0 +1,14 @@
+{
+  "name": "yidemo",
+  "version": "2.0.0",
+  "description": "椿萱·颐 - AI陪伴设备模拟器",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0",
+    "node-fetch": "^2.7.0"
+  }
+}

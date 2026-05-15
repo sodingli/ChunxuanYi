@@ -26,6 +26,12 @@ yi_device_simulator_v4.html
 emotion_demo_v2.py
 emotion_demo_v3.py
 
+# 依赖
+node_modules/
+
+# 数据
+data/store.json
+
 # 配置（含API Key）
 config.js
 

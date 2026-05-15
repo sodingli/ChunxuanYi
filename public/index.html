@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>椿萱·颐 - AI陪伴设备模拟器</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>椿萱·颐</h1>
+      <p>AI陪伴设备模拟器 v2.0</p>
+      <div class="device-face" id="deviceFace">
+        <canvas id="faceCanvas" width="200" height="200"></canvas>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <!-- 左侧：摄像头 + 检测 -->
+      <section class="left-panel">
+        <div class="video-container" id="videoContainer">
+          <div class="placeholder" id="placeholder">
+            <div class="icon">📷</div>
+            <p>点击"开启摄像头"开始</p>
+          </div>
+          <video id="video" autoplay muted playsinline></video>
+          <canvas id="overlay"></canvas>
+        </div>
+
+        <div class="controls">
+          <button id="startBtn">📷 开启</button>
+          <button id="stopBtn" disabled>⏹️ 关闭</button>
+          <button id="voiceBtn">🎤 语音</button>
+          <button id="wakeBtn">🔔 唤醒</button>
+        </div>
+
+        <div class="voice-status" id="voiceStatus"></div>
+
+        <div class="status-panel">
+          <h3>实时检测</h3>
+          <div class="status-item">
+            <span class="status-label">人脸检测</span>
+            <span class="status-value" id="faceStatus">未检测</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">检测到人脸</span>
+            <span class="status-value" id="faceCount">0</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">主要情绪</span>
+            <span class="status-value" id="emotionStatus">-</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">跌倒检测</span>
+            <span class="status-value" id="fallStatus">正常</span>
+          </div>
+          <div class="emotion-bar" id="emotionBar" style="display:none;">
+            <div class="emotion-item">
+              <span class="emotion-label">开心</span>
+              <div class="emotion-progress"><div class="emotion-fill" id="happyBar" style="width:0%"></div></div>
+              <span class="emotion-value" id="happyValue">0%</span>
+            </div>
+            <div class="emotion-item">
+              <span class="emotion-label">悲伤</span>
+              <div class="emotion-progress"><div class="emotion-fill" id="sadBar" style="width:0%"></div></div>
+              <span class="emotion-value" id="sadValue">0%</span>
+            </div>
+            <div class="emotion-item">
+              <span class="emotion-label">中性</span>
+              <div class="emotion-progress"><div class="emotion-fill" id="neutralBar" style="width:0%"></div></div>
+              <span class="emotion-value" id="neutralValue">0%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="alert-panel" id="alertPanel" style="display:none;">
+          <h3>⚠️ 告警</h3>
+          <div id="alertContent"></div>
+          <div class="alert-actions">
+            <button id="alertConfirmBtn" class="btn-danger">已确认</button>
+            <button id="alertDismissBtn">误报</button>
+          </div>
+        </div>
+
+        <div class="interrupt-hint">
+          语音打断：当「颐」正在说话时，点击语音按钮可打断并开始说话。
+        </div>
+
+        <div class="error" id="errorMsg"></div>
+      </section>
+
+      <!-- 中间：对话 -->
+      <section class="middle-panel">
+        <div class="chat-container">
+          <div class="chat-messages" id="chatMessages">
+            <div class="message message-ai">
+              <div class="sender">颐</div>
+              <div class="bubble">爷爷/奶奶您好！我是颐，会记住咱们聊过的话，也会提醒您重要的事情。有什么我可以帮您的吗？</div>
+            </div>
+          </div>
+
+          <div class="speaking-indicator" id="speakingIndicator">「颐」正在说话...（点击语音按钮可打断）</div>
+          <div class="listening-indicator" id="listeningIndicator">正在听您说话...</div>
+
+          <div class="chat-input">
+            <input type="text" id="messageInput" placeholder="输入消息，或点击语音按钮...">
+            <button id="sendBtn">发送</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 右侧：功能面板 -->
+      <section class="right-panel">
+        <div class="tab-header">
+          <button class="tab-btn active" data-tab="memory">记忆</button>
+          <button class="tab-btn" data-tab="reminder">提醒</button>
+          <button class="tab-btn" data-tab="emotion">情感</button>
+          <button class="tab-btn" data-tab="companion">陪伴</button>
+          <button class="tab-btn" data-tab="alert">告警</button>
+        </div>
+
+        <div class="tab-content active" id="memoryTab">
+          <div class="memory-section">
+            <h4>记住的信息</h4>
+            <div id="memoriesList">
+              <div class="memory-item"><div class="label">暂无记忆</div><div>开始对话后，我会记住重要信息</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-content" id="reminderTab">
+          <div class="memory-section">
+            <h4>提醒事项</h4>
+            <div id="remindersList">
+              <div class="reminder-item"><div class="date">暂无提醒</div><div>点击下方添加提醒</div></div>
+            </div>
+            <div class="add-reminder">
+              <input type="text" id="reminderInput" placeholder="提醒内容...">
+              <input type="date" id="reminderDate">
+              <button onclick="YiApp.memory.addReminder()">添加提醒</button>
+            </div>
+            <h4>健康提醒</h4>
+            <div id="healthList">
+              <div class="reminder-item health"><div class="date">暂无健康提醒</div><div>点击下方添加</div></div>
+            </div>
+            <div class="add-reminder">
+              <input type="text" id="healthInput" placeholder="健康提醒内容...">
+              <input type="date" id="healthDate">
+              <button onclick="YiApp.memory.addHealthReminder()">添加健康提醒</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-content" id="emotionTab">
+          <div class="memory-section">
+            <h4>今日情绪曲线</h4>
+            <div id="emotionChart">
+              <div class="emotion-chart"><p style="color:#7f8c8d; font-size:13px;">开始对话后，我会记录您的情绪变化</p></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-content" id="companionTab">
+          <div class="memory-section">
+            <h4>今日天气</h4>
+            <div id="weatherInfo" class="weather-card">
+              <p style="color:#7f8c8d;">加载中...</p>
+            </div>
+            <button onclick="YiApp.companion.refreshWeather()" style="width:100%;margin-top:8px;">刷新天气</button>
+
+            <h4 style="margin-top:20px;">音乐/故事</h4>
+            <div id="musicList"></div>
+
+            <h4 style="margin-top:20px;">用药提醒</h4>
+            <div id="medicineList">
+              <div class="reminder-item"><div class="date">暂无用药提醒</div></div>
+            </div>
+            <div class="add-reminder">
+              <input type="text" id="medicineInput" placeholder="药品名称...">
+              <input type="time" id="medicineTime">
+              <button onclick="YiApp.companion.addMedicine()">添加用药提醒</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-content" id="alertTab">
+          <div class="memory-section">
+            <h4>告警记录</h4>
+            <div id="alertLog">
+              <div class="memory-item"><div class="label">暂无告警</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
