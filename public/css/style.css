@@ -25,6 +25,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 30px;
+  position: relative;
 }
 
 .header h1 { font-size: 32px; }

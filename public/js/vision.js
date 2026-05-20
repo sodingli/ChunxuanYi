@@ -10,13 +10,13 @@ const DETECT_INTERVAL = 300;
 
 // 情绪触发
 const emotionBuffer = [];
-const EMOTION_SAMPLE_INTERVAL = 1000;
-const EMOTION_TRIGGER_DURATION = 7000;
-const EMOTION_TRIGGER_THRESHOLD = 0.6;
+const EMOTION_SAMPLE_INTERVAL = 800;
+const EMOTION_TRIGGER_DURATION = 5000;
+const EMOTION_TRIGGER_THRESHOLD = 0.4;
 let lastEmotionSampleTime = 0;
 let emotionTriggered = false;
 let lastTriggerTime = 0;
-const TRIGGER_COOLDOWN = 60000;
+const TRIGGER_COOLDOWN = 30000;
 
 const emotionPrompts = {
   happy: [
@@ -217,11 +217,11 @@ function sampleEmotion(expressions) {
 
   let maxEmotion = 'neutral', maxValue = 0;
   for (const key in expressions) {
-    if (key === 'neutral' || key === 'disgusted') continue;
+    if (key === 'disgusted') continue;
     if (expressions[key] > maxValue) { maxValue = expressions[key]; maxEmotion = key; }
   }
 
-  if (maxValue >= EMOTION_TRIGGER_THRESHOLD && maxEmotion !== 'neutral') {
+  if (maxValue >= EMOTION_TRIGGER_THRESHOLD) {
     emotionBuffer.push({ emotion: maxEmotion, value: maxValue, time: now });
   }
 
@@ -234,7 +234,7 @@ function sampleEmotion(expressions) {
 function checkEmotionTrigger() {
   if (emotionTriggered) return;
   if (Date.now() - lastTriggerTime < TRIGGER_COOLDOWN) return;
-  if (emotionBuffer.length < 5) return;
+  if (emotionBuffer.length < 3) return;
 
   const counts = {};
   emotionBuffer.forEach(s => { counts[s.emotion] = (counts[s.emotion] || 0) + 1; });
@@ -244,7 +244,7 @@ function checkEmotionTrigger() {
     if (counts[e] > maxCount) { maxCount = counts[e]; dominant = e; }
   }
 
-  if (maxCount / emotionBuffer.length < 0.6) return;
+  if (maxCount / emotionBuffer.length < 0.5) return;
 
   emotionTriggered = true;
   lastTriggerTime = Date.now();

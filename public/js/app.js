@@ -60,9 +60,61 @@ function drawDeviceFace() {
   ctx.stroke();
 }
 
+// 设置弹窗
+const settingsModal = document.getElementById('settingsModal');
+const settingsApiKey = document.getElementById('settingsApiKey');
+const settingsMsg = document.getElementById('settingsMsg');
+
+document.getElementById('settingsBtn').addEventListener('click', () => {
+  settingsModal.style.display = 'flex';
+  settingsMsg.style.display = 'none';
+  fetch('/api/config/status').then(r => r.json()).then(d => {
+    if (d.configured) settingsMsg.style.display = 'none';
+  });
+});
+
+document.getElementById('settingsCloseBtn').addEventListener('click', () => {
+  settingsModal.style.display = 'none';
+});
+
+settingsModal.addEventListener('click', (e) => {
+  if (e.target === settingsModal) settingsModal.style.display = 'none';
+});
+
+document.getElementById('settingsSaveBtn').addEventListener('click', () => {
+  const key = settingsApiKey.value.trim();
+  if (!key) { settingsMsg.textContent = '请输入 API Key'; settingsMsg.style.color = '#e74c3c'; settingsMsg.style.display = 'block'; return; }
+
+  fetch('/api/config/key', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apiKey: key }),
+  }).then(r => r.json()).then(d => {
+    if (d.ok) {
+      settingsMsg.textContent = '✓ API Key 已保存，可以开始对话了！';
+      settingsMsg.style.color = '#27ae60';
+      settingsMsg.style.display = 'block';
+      setTimeout(() => settingsModal.style.display = 'none', 1500);
+    } else {
+      settingsMsg.textContent = d.error || '保存失败';
+      settingsMsg.style.color = '#e74c3c';
+      settingsMsg.style.display = 'block';
+    }
+  }).catch(() => {
+    settingsMsg.textContent = '网络错误';
+    settingsMsg.style.color = '#e74c3c';
+    settingsMsg.style.display = 'block';
+  });
+});
+
 // 初始化所有模块
 document.addEventListener('DOMContentLoaded', () => {
   drawDeviceFace();
+
+  // 检查 API Key 配置状态
+  fetch('/api/config/status').then(r => r.json()).then(d => {
+    if (!d.configured) settingsModal.style.display = 'flex';
+  });
 
   visionInit();
   voiceInit();
@@ -70,6 +122,16 @@ document.addEventListener('DOMContentLoaded', () => {
   memoryInit();
   alertInit();
   companionInit();
+
+  // 延迟朗读初始问候语（等待 TTS 解锁和用户交互）
+  const greetText = '爷爷奶奶您好！我是颐，会记住咱们聊过的话，也会提醒您重要的事情。有什么我可以帮您的吗？';
+  const greetOnce = () => {
+    EventBus.emit(Events.CHAT_AI_MSG, { text: greetText, speak: true });
+    document.removeEventListener('click', greetOnce);
+    document.removeEventListener('keydown', greetOnce);
+  };
+  document.addEventListener('click', greetOnce, { once: true });
+  document.addEventListener('keydown', greetOnce, { once: true });
 
   console.log('椿萱·颐 v2.0 已初始化');
 });

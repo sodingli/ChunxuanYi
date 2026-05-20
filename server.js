@@ -11,6 +11,21 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ============ API Routes ============
 
+// 配置检查 & 设置
+app.get('/api/config/status', (req, res) => {
+  const llm = require('./modules/llm');
+  res.json({ configured: llm.isConfigured() });
+});
+
+app.post('/api/config/key', (req, res) => {
+  const { apiKey } = req.body;
+  if (!apiKey || !apiKey.startsWith('sk-')) {
+    return res.status(400).json({ error: '无效的 API Key 格式' });
+  }
+  require('./modules/llm').setApiKey(apiKey);
+  res.json({ ok: true, message: 'API Key 已设置' });
+});
+
 // LLM 对话
 app.post('/api/chat', async (req, res) => {
   const { message, context } = req.body;
@@ -102,6 +117,12 @@ app.get('/api/companion/weather', async (req, res) => {
 
 app.get('/api/companion/music', (req, res) => {
   const list = require('./modules/companion-service').getMusicList();
+  res.json(list);
+});
+
+app.get('/api/companion/story/:id', (req, res) => {
+  const list = require('./modules/companion-service').getStoryContent(parseInt(req.params.id));
+  if (!list) return res.status(404).json({ error: 'not found' });
   res.json(list);
 });
 

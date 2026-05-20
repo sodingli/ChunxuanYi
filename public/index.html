@@ -14,6 +14,7 @@
       <div class="device-face" id="deviceFace">
         <canvas id="faceCanvas" width="200" height="200"></canvas>
       </div>
+      <button id="settingsBtn" style="position:absolute;top:12px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;" title="设置">⚙️</button>
     </header>
 
     <main class="main-content">
@@ -194,6 +195,22 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- 设置弹窗 -->
+  <div id="settingsModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center;">
+    <div style="background:#fff;border-radius:12px;padding:32px;max-width:420px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+      <h3 style="margin:0 0 8px 0;">⚙️ 设置</h3>
+      <p style="color:#666;font-size:13px;margin:0 0 20px 0;">配置通义千问 API Key 后即可使用对话功能</p>
+      <label style="font-size:13px;color:#555;display:block;margin-bottom:6px;">DASHSCOPE_API_KEY</label>
+      <input type="password" id="settingsApiKey" placeholder="sk-xxxxxxxx" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;font-size:14px;box-sizing:border-box;margin-bottom:16px;">
+      <div id="settingsMsg" style="font-size:13px;margin-bottom:12px;display:none;"></div>
+      <div style="display:flex;gap:10px;">
+        <button id="settingsSaveBtn" style="flex:1;padding:10px;background:#667eea;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;">保存</button>
+        <button id="settingsCloseBtn" style="flex:1;padding:10px;background:#f0f0f0;border:none;border-radius:6px;cursor:pointer;font-size:14px;">关闭</button>
+      </div>
+      <p style="color:#999;font-size:12px;margin-top:12px;">获取 API Key：<a href="https://dashscope.console.aliyun.com/apiKey" target="_blank" style="color:#667eea;">阿里云 DashScope 控制台</a></p>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>

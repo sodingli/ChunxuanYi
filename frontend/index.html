@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>椿萱·颐 v4 - 完整功能版</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1700px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 { font-size: 36px; margin-bottom: 10px; }
+        .header p { font-size: 16px; opacity: 0.9; }
+        
+        .main-content { display: flex; min-height: 600px; }
+        
+        .left-panel { flex: 1; padding: 30px; border-right: 2px solid #f0f0f0; }
+        
+        .middle-panel {
+            flex: 1;
+            padding: 30px;
+            border-right: 2px solid #f0f0f0;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .right-panel {
+            width: 380px;
+            padding: 30px;
+            background: #f8f9fa;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .video-container {
+            position: relative;
+            width: 100%;
+            background: #2c3e50;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            min-height: 350px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #video { width: 100%; height: auto; display: none; }
+        #canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+        }
+        
+        .placeholder { color: white; text-align: center; padding: 40px; }
+        .placeholder .icon { font-size: 80px; margin-bottom: 20px; opacity: 0.5; }
+        
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        
+        button {
+            flex: 1;
+            min-width: 90px;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        #startBtn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        #stopBtn { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
+        #voiceBtn { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; }
+        
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+        
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        button.speaking { animation: pulse 1s infinite; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .status-panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .status-panel h3 { color: #2c3e50; margin-bottom: 15px; font-size: 16px; }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .status-label { color: #7f8c8d; font-size: 14px; }
+        .status-value { color: #2c3e50; font-weight: 600; font-size: 14px; }
+        
+        .emotion-bar { margin-top: 15px; }
+        .emotion-item { display: flex; align-items: center; margin-bottom: 8px; }
+        .emotion-label { width: 70px; font-size: 13px; color: #7f8c8d; }
+        
+        .emotion-progress {
+            flex: 1;
+            height: 16px;
+            background: #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 0 10px;
+        }
+        
+        .emotion-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            border-radius: 8px;
+        }
+        
+        .emotion-value {
+            width: 45px;
+            text-align: right;
+            font-size: 13px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .chat-container { flex: 1; display: flex; flex-direction: column; }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            max-height: 400px;
+        }
+        
+        .message { margin-bottom: 15px; animation: fadeIn 0.3s; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message-user { text-align: right; }
+        
+        .message-user .bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: inline-block;
+            padding: 10px 15px;
+            border-radius: 18px 18px 5px 18px;
+            max-width: 80%;
+        }
+        
+        .message-ai .bubble {
+            background: #f8f9fa;
+            color: #2c3e50;
+            display: inline-block;
+            padding: 10px 15px;
+            border-radius: 18px 18px 18px 5px;
+            max-width: 80%;
+        }
+        
+        .sender { font-size: 12px; color: #7f8c8d; margin-bottom: 5px; }
+        
+        .chat-input { display: flex; gap: 10px; }
+        
+        #messageInput {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        #messageInput:focus { border-color: #667eea; }
+        
+        #sendBtn {
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        #sendBtn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .listening-indicator, .speaking-indicator {
+            display: none;
+            text-align: center;
+            padding: 10px;
+            font-weight: 600;
+        }
+        
+        .listening-indicator { color: #667eea; }
+        .speaking-indicator { color: #f093fb; }
+        
+        .listening-indicator.active,
+        .speaking-indicator.active {
+            display: block;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .error {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .error.show { display: block; }
+        
+        /* 右侧面板标签页 */
+        .tab-header {
+            display: flex;
+            border-bottom: 2px solid #dee2e6;
+            margin-bottom: 20px;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: #7f8c8d;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .tab-content.active { display: block; }
+        
+        .memory-section { margin-bottom: 20px; }
+        .memory-section h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 14px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .memory-item {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #2c3e50;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .memory-item .label {
+            color: #7f8c8d;
+            font-size: 12px;
+            margin-bottom: 3px;
+        }
+        
+        .reminder-item {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            border-left: 3px solid #667eea;
+        }
+        
+        .reminder-item.health {
+            border-left-color: #e74c3c;
+        }
+        
+        .reminder-item .date {
+            color: #667eea;
+            font-weight: 600;
+            font-size: 12px;
+            margin-bottom: 3px;
+        }
+        
+        .reminder-item.health .date {
+            color: #e74c3c;
+        }
+        
+        .add-reminder { margin-top: 15px; }
+        .add-reminder input {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 8px;
+            outline: none;
+        }
+        
+        .add-reminder input:focus { border-color: #667eea; }
+        
+        .add-reminder button {
+            width: 100%;
+            padding: 8px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .emotion-chart {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .emotion-chart h5 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+        
+        .emotion-bar-chart {
+            display: flex;
+            align-items: flex-end;
+            height: 100px;
+            gap: 5px;
+        }
+        
+        .bar {
+            flex: 1;
+            background: linear-gradient(0deg, #667eea 0%, #764ba2 100%);
+            border-radius: 3px 3px 0 0;
+            min-height: 5px;
+            position: relative;
+        }
+        
+        .bar-label {
+            position: absolute;
+            bottom: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            color: #7f8c8d;
+        }
+        
+        .interrupt-hint {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌸 椿萱·颐 v4</h1>
+            <p>AI陪伴设备模拟器 - 完整功能版</p>
+        </div>
+        
+        <div class="main-content">
+            <!-- 左侧：摄像头 -->
+            <div class="left-panel">
+                <div class="video-container" id="videoContainer">
+                    <div class="placeholder" id="placeholder">
+                        <div class="icon">📷</div>
+                        <p>点击"开启摄像头"开始</p>
+                    </div>
+                    <video id="video" autoplay muted playsinline></video>
+                    <canvas id="canvas"></canvas>
+                </div>
+                
+                <div class="controls">
+                    <button id="startBtn">📷 开启</button>
+                    <button id="stopBtn" disabled>⏹️ 关闭</button>
+                    <button id="voiceBtn">🎤 语音</button>
+                </div>
+                
+                <div class="status-panel">
+                    <h3>📊 实时检测</h3>
+                    <div class="status-item">
+                        <span class="status-label">人脸检测</span>
+                        <span class="status-value" id="faceStatus">未检测</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">检测到人脸</span>
+                        <span class="status-value" id="faceCount">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">主要情绪</span>
+                        <span class="status-value" id="emotionStatus">-</span>
+                    </div>
+                    
+                    <div class="emotion-bar" id="emotionBar" style="display:none;">
+                        <div class="emotion-item">
+                            <span class="emotion-label">😊 开心</span>
+                            <div class="emotion-progress">
+                                <div class="emotion-fill" id="happyBar" style="width:0%"></div>
+                            </div>
+                            <span class="emotion-value" id="happyValue">0%</span>
+                        </div>
+                        <div class="emotion-item">
+                            <span class="emotion-label">😢 悲伤</span>
+                            <div class="emotion-progress">
+                                <div class="emotion-fill" id="sadBar" style="width:0%"></div>
+                            </div>
+                            <span class="emotion-value" id="sadValue">0%</span>
+                        </div>
+                        <div class="emotion-item">
+                            <span class="emotion-label">😐 中性</span>
+                            <div class="emotion-progress">
+                                <div class="emotion-fill" id="neutralBar" style="width:0%"></div>
+                            </div>
+                            <span class="emotion-value" id="neutralValue">0%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="interrupt-hint">
+                    💡 <strong>语音打断功能：</strong>当「颐」正在说话时，点击「🎤 语音」按钮可以打断，直接说话即可。
+                </div>
+                
+                <div class="error" id="errorMsg"></div>
+            </div>
+            
+            <!-- 中间：对话 -->
+            <div class="middle-panel">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message message-ai">
+                            <div class="sender">颐</div>
+                            <div class="bubble">爷爷/奶奶您好！我是颐。我会记住我们聊过的话，也会提醒您重要的事情，还会关心您的健康。有什么我可以帮您的吗？</div>
+                        </div>
+                    </div>
+                    
+                    <div class="speaking-indicator" id="speakingIndicator">
+                        🔊 「颐」正在说话...（点击🎤按钮可打断）
+                    </div>
+                    
+                    <div class="listening-indicator" id="listeningIndicator">
+                        🎤 正在听您说话...
+                    </div>
+                    
+                    <div class="chat-input">
+                        <input type="text" id="messageInput" placeholder="输入消息，或点击语音按钮..." />
+                        <button id="sendBtn">发送</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧：记忆面板（标签页） -->
+            <div class="right-panel">
+                <div class="tab-header">
+                    <button class="tab-btn active" data-tab="memory">🧠 记忆</button>
+                    <button class="tab-btn" data-tab="reminder">⏰ 提醒</button>
+                    <button class="tab-btn" data-tab="emotion">😊 情感</button>
+                    <button class="tab-btn" data-tab="health">❤️ 健康</button>
+                </div>
+                
+                <div class="tab-content active" id="memoryTab">
+                    <div class="memory-section">
+                        <h4>记住的信息</h4>
+                        <div id="memoriesList">
+                            <div class="memory-item">
+                                <div class="label">暂无记忆</div>
+                                <div>开始对话后，我会记住重要信息</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="reminderTab">
+                    <div class="memory-section">
+                        <h4>提醒事项</h4>
+                        <div id="remindersList">
+                            <div class="reminder-item">
+                                <div class="date">暂无提醒</div>
+                                <div>点击下方添加提醒</div>
+                            </div>
+                        </div>
+                        
+                        <div class="add-reminder">
+                            <input type="text" id="reminderInput" placeholder="提醒内容..." />
+                            <input type="date" id="reminderDate" />
+                            <button onclick="addReminder()">添加提醒</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="emotionTab">
+                    <div class="memory-section">
+                        <h4>今日情绪曲线</h4>
+                        <div id="emotionChart">
+                            <div class="emotion-chart">
+                                <p style="color:#7f8c8d; font-size:13px;">开始对话后，我会记录您的情绪变化</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="healthTab">
+                    <div class="memory-section">
+                        <h4>健康提醒</h4>
+                        <div id="healthList">
+                            <div class="reminder-item health">
+                                <div class="date">暂无健康提醒</div>
+                                <div>点击下方添加健康提醒</div>
+                            </div>
+                        </div>
+                        
+                        <div class="add-reminder">
+                            <input type="text" id="healthInput" placeholder="健康提醒内容..." />
+                            <input type="date" id="healthDate" />
+                            <button onclick="addHealthReminder()">添加健康提醒</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    
+    <script>
+        // 全局变量
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const voiceBtn = document.getElementById('voiceBtn');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const chatMessages = document.getElementById('chatMessages');
+        const listeningIndicator = document.getElementById('listeningIndicator');
+        const speakingIndicator = document.getElementById('speakingIndicator');
+        const placeholder = document.getElementById('placeholder');
+        
+        let stream = null;
+        let isRunning = false;
+        let animationId = null;
+        let isListening = false;
+        let recognition = null;
+        let currentUtterance = null;
+        let isSpeaking = false;
+        
+        // API配置
+        const API_BASE = 'http://localhost:8000/api';
+        
+        // 记忆系统
+        let memories = [];
+        let reminders = [];
+        let healthReminders = [];
+        let emotionRecords = [];
+        let lastEmotionRecordTime = 0;  // 上次记录情绪的时间
+        
+        // 标签页切换
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                
+                // 更新按钮状态
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                // 更新内容显示
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById(tab + 'Tab').classList.add('active');
+            });
+        });
+        
+        // 初始化
+        async function initMemory() {
+            await Promise.all([
+                loadMemories(),
+                loadReminders(),
+                loadHealthReminders(),
+                loadEmotionRecords()
+            ]);
+        }
+        
+        // 从后端加载记忆
+        async function loadMemories() {
+            const resp = await fetch(`${API_BASE}/reminder/memories?session_id=default`);
+            memories = await resp.json();
+            updateMemoriesUI();
+        }
+
+        // 添加记忆到后端
+        async function addMemory(content, type = 'conversation') {
+            await fetch(`${API_BASE}/reminder/memories?session_id=default`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, mtype: type })
+            });
+            await loadMemories();
+        }
+        
+        function addEmotionRecord(emotion, value) {
+            const now = Date.now();
+
+            // 节流：每30秒最多记录一次
+            if (now - lastEmotionRecordTime < 30000) {
+                return;  // 30秒内不重复记录
+            }
+
+            const record = {
+                id: now,
+                date: new Date().toISOString().split('T')[0],
+                time: new Date().toTimeString().split(' ')[0],
+                emotion: emotion,
+                value: value
+            };
+            emotionRecords.push(record);
+            lastEmotionRecordTime = now;
+            updateEmotionChart();
+        }
+        
+        // 加载提醒
+        async function loadReminders() {
+            const resp = await fetch(`${API_BASE}/reminder`);
+            reminders = await resp.json();
+            updateRemindersUI();
+        }
+
+        // 添加提醒
+        async function addReminder() {
+            const content = document.getElementById('reminderInput').value.trim();
+            const date = document.getElementById('reminderDate').value;
+            if (!content || !date) { alert('请填写提醒内容和日期'); return; }
+            await fetch(`${API_BASE}/reminder`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, date, is_health: false })
+            });
+            document.getElementById('reminderInput').value = '';
+            document.getElementById('reminderDate').value = '';
+            await loadReminders();
+            showNotification('提醒已添加！');
+        }
+
+        // 添加健康提醒
+        async function addHealthReminder() {
+            const content = document.getElementById('healthInput').value.trim();
+            const date = document.getElementById('healthDate').value;
+            if (!content || !date) { alert('请填写健康提醒内容和日期'); return; }
+            await fetch(`${API_BASE}/reminder/health`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, date, is_health: true })
+            });
+            document.getElementById('healthInput').value = '';
+            document.getElementById('healthDate').value = '';
+            await loadHealthReminders();
+            showNotification('健康提醒已添加！');
+        }
+
+        // 加载健康提醒
+        async function loadHealthReminders() {
+            const resp = await fetch(`${API_BASE}/reminder/health`);
+            healthReminders = await resp.json();
+            updateHealthUI();
+        }
+
+        // 加载情绪记录
+        async function loadEmotionRecords() {
+            const resp = await fetch(`${API_BASE}/reminder/emotions`);
+            emotionRecords = await resp.json();
+            updateEmotionChart();
+        }
+        
+        function updateMemoriesUI() {
+            const list = document.getElementById('memoriesList');
+            if (memories.length === 0) {
+                list.innerHTML = '<div class="memory-item"><div class="label">暂无记忆</div><div>开始对话后，我会记住重要信息</div></div>';
+                return;
+            }
+            list.innerHTML = memories.map(m => `
+                <div class="memory-item">
+                    <div class="label">${m.type} - ${new Date(m.timestamp).toLocaleDateString('zh-CN')}</div>
+                    <div>${m.content}</div>
+                </div>
+            `).join('');
+        }
+        
+        function updateRemindersUI() {
+            const list = document.getElementById('remindersList');
+            if (reminders.length === 0) {
+                list.innerHTML = '<div class="reminder-item"><div class="date">暂无提醒</div><div>点击下方添加提醒</div></div>';
+                return;
+            }
+            list.innerHTML = reminders.map(r => `
+                <div class="reminder-item ${r.completed ? 'completed' : ''}">
+                    <div class="date">${r.date}</div>
+                    <div>${r.content}</div>
+                </div>
+            `).join('');
+        }
+        
+        function updateHealthUI() {
+            const list = document.getElementById('healthList');
+            if (healthReminders.length === 0) {
+                list.innerHTML = '<div class="reminder-item health"><div class="date">暂无健康提醒</div><div>点击下方添加健康提醒</div></div>';
+                return;
+            }
+            list.innerHTML = healthReminders.map(r => `
+                <div class="reminder-item health ${r.completed ? 'completed' : ''}">
+                    <div class="date">${r.date}</div>
+                    <div>${r.content}</div>
+                </div>
+            `).join('');
+        }
+        
+        function updateEmotionChart() {
+            const container = document.getElementById('emotionChart');
+            const today = new Date().toISOString().split('T')[0];
+            const todayRecords = emotionRecords.filter(r => r.date === today);
+            
+            if (todayRecords.length === 0) {
+                container.innerHTML = '<div class="emotion-chart"><p style="color:#7f8c8d; font-size:13px;">开始对话后，我会记录您的情绪变化</p></div>';
+                return;
+            }
+            
+            // 统计今日各情绪出现次数
+            const emotionCounts = { happy: 0, sad: 0, neutral: 0, angry: 0, fearful: 0, surprised: 0 };
+            todayRecords.forEach(r => { emotionCounts[r.emotion] = (emotionCounts[r.emotion] || 0) + 1; });
+            
+            const maxCount = Math.max(...Object.values(emotionCounts));
+            
+            container.innerHTML = `
+                <div class="emotion-chart">
+                    <h5>今日情绪分布</h5>
+                    <div class="emotion-bar-chart">
+                        ${Object.entries(emotionCounts).map(([emotion, count]) => `
+                            <div class="bar" style="height: ${maxCount > 0 ? (count / maxCount * 100) : 0}%">
+                                <span class="bar-label">${getEmotionEmoji(emotion)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div style="display:flex; justify-content:space-around; margin-top:20px; font-size:11px; color:#7f8c8d;">
+                        ${Object.entries(emotionCounts).map(([emotion, count]) => `
+                            <div style="text-align:center;">
+                                <div>${getEmotionEmoji(emotion)}</div>
+                                <div>${count}次</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function getEmotionEmoji(emotion) {
+            const map = { happy: '😊', sad: '😢', angry: '😠', fearful: '😨', surprised: '😲', neutral: '😐' };
+            return map[emotion] || '😐';
+        }
+        
+        function showNotification(msg) { addMessage('🔔 ' + msg, 'ai'); }
+        
+        function checkReminders() {
+            const today = new Date().toISOString().split('T')[0];
+            [...reminders, ...healthReminders].forEach(r => {
+                if (!r.completed && r.date === today) {
+                    showNotification(`提醒：今天 ${r.content}`);
+                    r.completed = true;
+                }
+            });
+            saveReminders();
+            saveHealth();
+            updateRemindersUI();
+            updateHealthUI();
+        }
+        
+        // 加载 face-api 模型
+        async function loadFaceAPIModels() {
+            try {
+                await faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
+                await faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
+                await faceapi.nets.faceExpressionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
+                console.log('Face API models loaded');
+                return true;
+            } catch (err) {
+                console.error('Failed to load Face API models:', err);
+                showError('无法加载人脸检测模型');
+                return false;
+            }
+        }
+        
+        // 开启摄像头
+        startBtn.addEventListener('click', async () => {
+            try {
+                await loadFaceAPIModels();
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: 'user' },
+                    audio: false
+                });
+                video.srcObject = stream;
+                video.style.display = 'block';
+                placeholder.style.display = 'none';
+                canvas.width = video.videoWidth || 640;
+                canvas.height = video.videoHeight || 480;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                isRunning = true;
+                detectFaces();
+            } catch (err) {
+                showError('无法访问摄像头: ' + err.message);
+            }
+        });
+        
+        // 关闭摄像头
+        stopBtn.addEventListener('click', () => {
+            isRunning = false;
+            if (stream) { stream.getTracks().forEach(track => track.stop()); stream = null; }
+            if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
+            video.style.display = 'none';
+            placeholder.style.display = 'block';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('faceStatus').textContent = '未检测';
+            document.getElementById('faceStatus').style.color = '#7f8c8d';
+            document.getElementById('faceCount').textContent = '0';
+            document.getElementById('emotionStatus').textContent = '-';
+            document.getElementById('emotionBar').style.display = 'none';
+        });
+        
+        // 人脸检测
+        async function detectFaces() {
+            if (!isRunning) return;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            try {
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions();
+                if (detections && detections.length > 0) {
+                    const resizedDetections = faceapi.resizeResults(detections, { width: canvas.width, height: canvas.height });
+                    faceapi.draw.drawDetections(canvas, resizedDetections);
+                    faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
+                    document.getElementById('faceStatus').textContent = '✅ 已检测';
+                    document.getElementById('faceStatus').style.color = '#27ae60';
+                    document.getElementById('faceCount').textContent = detections.length;
+                    updateEmotion(detections[0].expressions);
+                    
+                    // 记录情绪
+                    const expressions = detections[0].expressions;
+                    let maxEmotion = 'neutral', maxValue = 0;
+                    for (let key in expressions) {
+                        if (expressions[key] > maxValue) { maxValue = expressions[key]; maxEmotion = key; }
+                    }
+                    addEmotionRecord(maxEmotion, maxValue);
+                } else {
+                    document.getElementById('faceStatus').textContent = '未检测到';
+                    document.getElementById('faceStatus').style.color = '#e74c3c';
+                    document.getElementById('faceCount').textContent = '0';
+                    document.getElementById('emotionStatus').textContent = '-';
+                    document.getElementById('emotionBar').style.display = 'none';
+                }
+            } catch (err) { console.error('Face detection error:', err); }
+            animationId = requestAnimationFrame(detectFaces);
+        }
+        
+        // 更新情绪
+        function updateEmotion(expressions) {
+            const emotionMap = {
+                happy: '😊 开心', sad: '😢 悲伤', angry: '😠 愤怒',
+                fearful: '😨 恐惧', surprised: '😲 惊讶', neutral: '😐 中性', disgusted: '🤢 厌恶'
+            };
+            let maxEmotion = 'neutral', maxValue = 0;
+            for (let key in expressions) {
+                if (expressions[key] > maxValue) { maxValue = expressions[key]; maxEmotion = key; }
+            }
+            document.getElementById('emotionStatus').textContent = emotionMap[maxEmotion] || maxEmotion;
+            document.getElementById('emotionBar').style.display = 'block';
+            document.getElementById('happyBar').style.width = (expressions.happy * 100).toFixed(1) + '%';
+            document.getElementById('happyValue').textContent = (expressions.happy * 100).toFixed(1) + '%';
+            document.getElementById('sadBar').style.width = (expressions.sad * 100).toFixed(1) + '%';
+            document.getElementById('sadValue').textContent = (expressions.sad * 100).toFixed(1) + '%';
+            document.getElementById('neutralBar').style.width = (expressions.neutral * 100).toFixed(1) + '%';
+            document.getElementById('neutralValue').textContent = (expressions.neutral * 100).toFixed(1) + '%';
+        }
+        
+        // 语音识别
+        voiceBtn.addEventListener('click', () => {
+            if (isSpeaking) { interruptSpeech(); }
+            else { if (!isListening) { startListening(); } else { stopListening(); } }
+        });
+        
+        function interruptSpeech() {
+            speechSynthesis.cancel();
+            isSpeaking = false;
+            speakingIndicator.classList.remove('active');
+            voiceBtn.classList.remove('speaking');
+            startListening();
+        }
+        
+        function startListening() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                showError('您的浏览器不支持语音识别，请使用Chrome浏览器');
+                return;
+            }
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'zh-CN';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.onstart = () => {
+                isListening = true;
+                voiceBtn.textContent = '⏹️ 停止';
+                listeningIndicator.classList.add('active');
+            };
+            recognition.onresult = (event) => {
+                const text = event.results[0][0].transcript;
+                messageInput.value = text;
+                sendMessage();
+            };
+            recognition.onerror = (event) => { console.error('Speech recognition error:', event.error); stopListening(); };
+            recognition.onend = () => { stopListening(); };
+            recognition.start();
+        }
+        
+        function stopListening() {
+            if (recognition) { recognition.stop(); }
+            isListening = false;
+            voiceBtn.textContent = '🎤 语音';
+            listeningIndicator.classList.remove('active');
+        }
+        
+        // 发送消息
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+        
+        async function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text) return;
+            addMessage(text, 'user');
+            messageInput.value = '';
+            addMessage('正在思考...', 'ai', true);
+            try {
+                const response = await callQwenAPI(text);
+                removeLastMessage();
+                addMessage(response, 'ai');
+                speak(response);
+                addMemory(`用户说: ${text}`, 'conversation');
+                addMemory(`颐回复: ${response}`, 'conversation');
+            } catch (err) {
+                removeLastMessage();
+                addMessage('抱歉，我有点累了，稍后再试试吧。', 'ai');
+            }
+        }
+        
+        // 调用通义千问API - 增强记忆
+        async function callQwenAPI(userInput) {
+            const response = await fetch(`${API_BASE}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_input: userInput, session_id: 'default' })
+            });
+            const data = await response.json();
+            return data.reply;
+        }
+        
+        // 语音播报
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'zh-CN';
+                utterance.rate = 0.9;
+                isSpeaking = true;
+                speakingIndicator.classList.add('active');
+                voiceBtn.textContent = '🎤 打断我';
+                voiceBtn.classList.add('speaking');
+                utterance.onend = () => {
+                    isSpeaking = false;
+                    speakingIndicator.classList.remove('active');
+                    voiceBtn.textContent = '🎤 语音';
+                    voiceBtn.classList.remove('speaking');
+                };
+                currentUtterance = utterance;
+                speechSynthesis.speak(utterance);
+            }
+        }
+        
+        // 添加消息
+        function addMessage(text, sender, isTemp = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message message-${sender}`;
+            const senderName = sender === 'user' ? '您' : '颐';
+            messageDiv.innerHTML = `<div class="sender">${senderName}</div><div class="bubble">${text}</div>`;
+            if (isTemp) { messageDiv.id = 'tempMessage'; }
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function removeLastMessage() {
+            const tempMsg = document.getElementById('tempMessage');
+            if (tempMsg) { tempMsg.remove(); }
+        }
+        
+        function showError(msg) {
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.textContent = msg;
+            errorDiv.classList.add('show');
+            setTimeout(() => { errorDiv.classList.remove('show'); }, 5000);
+        }
+        
+        // 页面加载
+        window.addEventListener('load', () => {
+            initMemory();
+            checkReminders();
+            setInterval(checkReminders, 60000);
+        });
+    </script>
+</body>
+</html>

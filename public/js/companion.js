@@ -3,6 +3,63 @@ import { EventBus, Events } from './event-bus.js';
 
 let medicines = [];
 let musicList = [];
+let audioCtx = null;
+let isPlaying = false;
+let currentPlayId = null;
+
+// 中国五声音阶旋律生成
+const PENTATONIC = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25];
+
+function playMelody(title) {
+  if (isPlaying) stopMelody();
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  isPlaying = true;
+  currentPlayId = 'music_' + Date.now();
+
+  const melodies = {
+    '茉莉花': [4,4,5,6,6,5,4,3,2,2,3,4,4,3,3,2, 4,4,5,6,6,5,4,3,2,2,3,4,3,2,2,1],
+    '月亮代表我的心': [3,3,4,5,5,4,3,2,1,1,2,3,3,2,2,1, 3,3,4,5,5,4,3,4,5,5,6,5,4,3,2,1],
+    '在那遥远的地方': [5,5,4,3,2,2,3,4,4,3,2,1,1,2,3,3, 5,5,6,5,4,3,2,3,4,4,3,2,1,1,2,1],
+    '梁祝': [3,4,5,5,6,5,4,3,2,3,4,3,2,1,1,2, 3,4,5,6,5,4,3,2,3,4,3,2,1,2,3,1],
+    '二泉映月': [2,3,4,4,3,2,1,1,2,3,2,1,2,3,4,3, 2,1,1,2,3,4,3,2,1,2,3,2,1,1,2,1],
+  };
+
+  const notes = melodies[title] || [3,4,5,4,3,2,1,2,3,4,5,6,5,4,3,2];
+  const myId = currentPlayId;
+  let noteIndex = 0;
+
+  function playNote() {
+    if (!isPlaying || currentPlayId !== myId) return;
+    if (noteIndex >= notes.length * 2) { stopMelody(); return; }
+
+    const idx = notes[noteIndex % notes.length];
+    const freq = PENTATONIC[idx] || PENTATONIC[3];
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.45);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.5);
+
+    noteIndex++;
+    setTimeout(playNote, 500);
+  }
+
+  playNote();
+}
+
+function stopMelody() {
+  isPlaying = false;
+  currentPlayId = null;
+  if (audioCtx) { try { audioCtx.close(); } catch(e) {} audioCtx = null; }
+  updateMusicListUI();
+}
 
 export function init() {
   refreshWeather();
@@ -37,28 +94,65 @@ function loadMusic() {
     .then(r => r.json())
     .then(data => {
       musicList = [...(data.music || []), ...(data.stories || [])];
-      const container = document.getElementById('musicList');
-      if (musicList.length === 0) {
-        container.innerHTML = '<div class="memory-item"><div class="label">暂无内容</div></div>';
-        return;
-      }
-      container.innerHTML = musicList.map(item =>
-        `<div class="music-item" onclick="YiApp.companion.play(${item.id})"><span>${item.type === 'music' ? '🎵' : '📖'} ${item.title}</span><span class="play-icon">▶</span></div>`
-      ).join('');
+      updateMusicListUI();
     })
     .catch(() => {});
 }
 
+function updateMusicListUI() {
+  const container = document.getElementById('musicList');
+  if (musicList.length === 0) {
+    container.innerHTML = '<div class="memory-item"><div class="label">暂无内容</div></div>';
+    return;
+  }
+  container.innerHTML = musicList.map(item => {
+    const playing = isPlaying && currentPlayId === item.id ? '⏸️' : '▶';
+    return `<div class="music-item" onclick="YiApp.companion.play(${item.id})"><span>${item.type === 'music' ? '🎵' : '📖'} ${item.title}</span><span class="play-icon">${playing}</span></div>`;
+  }).join('');
+}
+
 export function play(id) {
+  // 如果正在播放同一个，则停止
+  if (isPlaying && currentPlayId === id) {
+    stopMelody();
+    const msg = '已停止播放。';
+    addChatMessage(msg, 'ai');
+    return;
+  }
+
   const item = musicList.find(m => m.id === id);
   if (!item) return;
 
-  // 模拟播放：通过TTS播报
-  const msg = item.type === 'music'
-    ? `正在为您播放《${item.title}》，希望您喜欢！`
-    : `好的，我来给您讲《${item.title}》的故事。`;
-  EventBus.emit(Events.CHAT_AI_MSG, { text: msg, speak: true });
-  addChatMessage(msg, 'ai');
+  currentPlayId = id;
+
+  if (item.type === 'music') {
+    // 音乐：生成旋律 + TTS 介绍
+    const msg = `正在为您播放《${item.title}》，希望您喜欢！`;
+    addChatMessage(msg, 'ai');
+    EventBus.emit(Events.CHAT_AI_MSG, { text: msg, speak: true });
+    setTimeout(() => playMelody(item.title), 2000);
+  } else {
+    // 故事：从后端获取内容，TTS 朗读
+    const intro = `好的，我来给您讲《${item.title}》的故事。`;
+    addChatMessage(intro, 'ai');
+    EventBus.emit(Events.CHAT_AI_MSG, { text: intro, speak: true });
+
+    fetch(`/api/companion/story/${id}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.content) {
+          setTimeout(() => {
+            addChatMessage(data.content, 'ai');
+            EventBus.emit(Events.CHAT_AI_MSG, { text: data.content, speak: true });
+          }, 3000);
+        }
+      })
+      .catch(() => {
+        addChatMessage('抱歉，故事加载失败了。', 'ai');
+      });
+  }
+
+  updateMusicListUI();
 }
 
 function addChatMessage(text, sender) {

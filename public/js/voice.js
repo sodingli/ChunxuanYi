@@ -17,7 +17,21 @@ let wakeListening = false;
 let wakeRecognition = null;
 const WAKE_WORD = '你好颐';
 
+let ttsUnlocked = false;
+
+function unlockTTS() {
+  if (ttsUnlocked || !('speechSynthesis' in window)) return;
+  const utterance = new SpeechSynthesisUtterance('');
+  utterance.volume = 0;
+  speechSynthesis.speak(utterance);
+  ttsUnlocked = true;
+}
+
 export function init() {
+  // 首次用户交互时解锁 TTS
+  document.addEventListener('click', unlockTTS, { once: true });
+  document.addEventListener('keydown', unlockTTS, { once: true });
+
   const voiceBtn = document.getElementById('voiceBtn');
   const wakeBtn = document.getElementById('wakeBtn');
 
@@ -111,14 +125,15 @@ function startListening() {
     let interim = '';
     finalTranscript = '';
     for (let i = 0; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
       if (event.results[i].isFinal) {
-        finalTranscript += event.results[i][0].transcript;
+        finalTranscript += transcript;
       } else {
-        interim += event.results[i][0].transcript;
+        interim += transcript;
       }
     }
 
-    const display = finalTranscript + interim;
+    const display = finalTranscript || interim;
     if (display) {
       messageInput.value = display;
       voiceStatus.textContent = '识别中: "' + display + '"';
@@ -129,18 +144,22 @@ function startListening() {
 
   recognition.onerror = (event) => {
     if (event.error === 'no-speech') {
-      voiceStatus.textContent = '未检测到语音，请重试';
+      voiceStatus.textContent = '未检测到语音，请靠近麦克风重试';
     } else if (event.error === 'not-allowed') {
-      showError('麦克风权限被拒绝');
-    } else if (event.error !== 'aborted') {
+      showError('麦克风权限被拒绝，请在浏览器地址栏左侧允许麦克风访问');
+    } else if (event.error === 'audio-capture') {
+      showError('未检测到麦克风，请连接麦克风设备');
+    } else if (event.error !== 'aborted' && event.error !== 'network') {
       voiceStatus.textContent = '语音识别出错: ' + event.error;
+      console.warn('ASR error:', event.error);
     }
     cleanupListening();
   };
 
   recognition.onend = () => {
+    // 优先使用 finalTranscript，fallback 到 messageInput 中的 interim
     const text = finalTranscript || messageInput.value.trim();
-    if (text && isListening) {
+    if (text) {
       voiceStatus.textContent = '识别完成: "' + text + '"';
       messageInput.value = text;
       isListening = false;
@@ -187,6 +206,9 @@ function resetSilenceTimer() {
 function speak(text) {
   if (!('speechSynthesis' in window)) return;
 
+  // 确保 TTS 已解锁
+  unlockTTS();
+
   speakGeneration++;
   const myGeneration = speakGeneration;
   speechSynthesis.cancel();
@@ -219,6 +241,7 @@ function speak(text) {
     utterance.lang = 'zh-CN';
     utterance.rate = 0.88;
     utterance.pitch = 1.1;
+    utterance.volume = 1.0;
     if (preferredVoice) utterance.voice = preferredVoice;
 
     utterance.onend = () => {
@@ -231,9 +254,10 @@ function speak(text) {
       }
     };
 
-    utterance.onerror = () => {
+    utterance.onerror = (e) => {
       if (speakGeneration !== myGeneration) return;
-      finishSpeaking();
+      // 非取消错误才结束
+      if (e.error !== 'canceled') finishSpeaking();
     };
 
     speechSynthesis.speak(utterance);
