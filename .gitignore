@@ -37,6 +37,10 @@ config.js
 
 # 模型文件（~105MB，需时手动下载）
 models/
+!backend/models/
+backend/models/*
+!backend/models/emo_affectnet/
+!backend/models/emo_affectnet/*.pth
 
 # 日志
 server.log
