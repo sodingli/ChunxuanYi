@@ -1,6 +1,6 @@
 import os
 
-DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY", "sk-8e8d2ac7875a4771a6adf4e4df68a7d3")
+DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY")
 DASHSCOPE_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
 LLM_MODEL = "qwen-turbo"
 LLM_MAX_TOKENS = 200

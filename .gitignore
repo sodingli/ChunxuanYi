@@ -35,5 +35,11 @@ data/store.json
 # 配置（含API Key）
 config.js
 
+# 模型文件（~105MB，需时手动下载）
+models/
+
+# 日志
+server.log
+
 # 报告文档
 2026-05-13_*.md

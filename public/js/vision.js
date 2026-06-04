@@ -123,19 +123,30 @@ export function init() {
 
 async function loadModels() {
   if (modelsLoaded) return true;
-  try {
-    const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models';
-    await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-      faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
-    ]);
-    modelsLoaded = true;
-    return true;
-  } catch (err) {
-    showError('无法加载人脸检测模型，请检查网络连接');
-    return false;
+
+  const MODEL_URLS = [
+    'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights',
+    'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights',
+    'https://justadudewhohacks.github.io/face-api.js/models',
+    '/models', // 本地 models 目录兜底（支持手动下载权重文件到 public/models/）
+  ];
+
+  for (const url of MODEL_URLS) {
+    try {
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(url),
+        faceapi.nets.faceLandmark68Net.loadFromUri(url),
+        faceapi.nets.faceExpressionNet.loadFromUri(url),
+      ]);
+      modelsLoaded = true;
+      console.log('人脸检测模型加载成功: ' + url);
+      return true;
+    } catch (e) {
+      console.warn('模型加载失败: ' + url, e.message);
+    }
   }
+  showError('无法加载人脸检测模型，请检查网络连接');
+  return false;
 }
 
 async function detectLoop(video, overlay, ctx) {

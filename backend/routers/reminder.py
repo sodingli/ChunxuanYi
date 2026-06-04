@@ -43,7 +43,7 @@ async def check_reminders():
 @router.get("/memories", response_model=list[MemoryItem])
 async def list_memories(session_id: str = "default"):
     raw = get_memories(session_id)
-    return [MemoryItem(id=m["id"], content=m["content"], mtype=m["type"], timestamp=m["timestamp"]) for m in raw]
+    return [MemoryItem(id=m["id"], content=m["content"], mtype=m["mtype"], timestamp=m["timestamp"]) for m in raw]
 
 
 @router.post("/memories", response_model=MemoryItem)

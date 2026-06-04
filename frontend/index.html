@@ -308,6 +308,48 @@
             font-size: 12px;
             margin-bottom: 3px;
         }
+
+        /* 角色设置样式 */
+        .character-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
         
         .reminder-item {
             background: white;
@@ -513,6 +555,7 @@
                     <button class="tab-btn" data-tab="reminder">⏰ 提醒</button>
                     <button class="tab-btn" data-tab="emotion">😊 情感</button>
                     <button class="tab-btn" data-tab="health">❤️ 健康</button>
+                    <button class="tab-btn" data-tab="character">👤 角色</button>
                 </div>
                 
                 <div class="tab-content active" id="memoryTab">
@@ -565,11 +608,48 @@
                                 <div>点击下方添加健康提醒</div>
                             </div>
                         </div>
-                        
+
                         <div class="add-reminder">
                             <input type="text" id="healthInput" placeholder="健康提醒内容..." />
                             <input type="date" id="healthDate" />
                             <button onclick="addHealthReminder()">添加健康提醒</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="characterTab">
+                    <div class="memory-section">
+                        <h4>角色设置</h4>
+                        <div class="character-form">
+                            <div class="form-group">
+                                <label>角色名称</label>
+                                <input type="text" id="characterName" value="颐" placeholder="输入角色名称" />
+                            </div>
+                            <div class="form-group">
+                                <label>性别</label>
+                                <select id="characterGender">
+                                    <option value="male">男性</option>
+                                    <option value="female">女性</option>
+                                    <option value="neutral">中性</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>性格特征</label>
+                                <textarea id="characterPersonality" rows="3" placeholder="描述角色性格">温暖、耐心、有同理心</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>称呼方式</label>
+                                <input type="text" id="characterAddress" value="爷爷" placeholder="如何称呼用户" />
+                            </div>
+                            <div class="form-group">
+                                <label>语言风格</label>
+                                <textarea id="characterStyle" rows="3" placeholder="描述语言风格">句子短，不用网络用语，50字内</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>自定义指令</label>
+                                <textarea id="characterCustom" rows="3" placeholder="特殊要求">主动关心身体和饮食</textarea>
+                            </div>
+                            <button onclick="saveCharacter()" style="width: 100%; margin-top: 15px;">保存角色设置</button>
                         </div>
                     </div>
                 </div>
@@ -603,7 +683,7 @@
         let isSpeaking = false;
         
         // API配置
-        const API_BASE = 'http://localhost:8000/api';
+        const API_BASE = 'http://localhost:8008/api';
         
         // 记忆系统
         let memories = [];
@@ -633,7 +713,8 @@
                 loadMemories(),
                 loadReminders(),
                 loadHealthReminders(),
-                loadEmotionRecords()
+                loadEmotionRecords(),
+                loadCharacter()
             ]);
         }
         
@@ -725,6 +806,60 @@
             const resp = await fetch(`${API_BASE}/reminder/emotions`);
             emotionRecords = await resp.json();
             updateEmotionChart();
+        }
+
+        // 保存角色设置
+        async function saveCharacter() {
+            const character = {
+                name: document.getElementById('characterName').value,
+                gender: document.getElementById('characterGender').value,
+                personality: document.getElementById('characterPersonality').value,
+                address_as: document.getElementById('characterAddress').value,
+                style: document.getElementById('characterStyle').value,
+                custom_instructions: document.getElementById('characterCustom').value
+            };
+
+            try {
+                const resp = await fetch(`${API_BASE}/chat/persona?session_id=default`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(character)
+                });
+
+                if (resp.ok) {
+                    showNotification('角色设置已保存！');
+                } else {
+                    showError('保存失败，请重试');
+                }
+            } catch (err) {
+                console.error('保存角色设置失败:', err);
+                showError('保存失败: ' + err.message);
+            }
+        }
+
+        // 加载角色设置
+        async function loadCharacter() {
+            try {
+                const resp = await fetch(`${API_BASE}/chat/persona?session_id=default`);
+                if (resp.ok) {
+                    const persona = await resp.json();
+                    document.getElementById('characterName').value = persona.name || '颐';
+                    document.getElementById('characterGender').value = persona.gender || 'neutral';
+                    document.getElementById('characterPersonality').value = persona.personality || '温暖、耐心、有同理心';
+                    document.getElementById('characterAddress').value = persona.address_as || '爷爷';
+                    document.getElementById('characterStyle').value = persona.style || '句子短，不用网络用语，50字内';
+                    document.getElementById('characterCustom').value = persona.custom_instructions || '主动关心身体和饮食';
+                }
+            } catch (err) {
+                console.error('加载角色设置失败:', err);
+                // 使用默认值
+                document.getElementById('characterName').value = '颐';
+                document.getElementById('characterGender').value = 'neutral';
+                document.getElementById('characterPersonality').value = '温暖、耐心、有同理心';
+                document.getElementById('characterAddress').value = '爷爷';
+                document.getElementById('characterStyle').value = '句子短，不用网络用语，50字内';
+                document.getElementById('characterCustom').value = '主动关心身体和饮食';
+            }
         }
         
         function updateMemoriesUI() {
@@ -831,14 +966,16 @@
         // 加载 face-api 模型
         async function loadFaceAPIModels() {
             try {
+                showNotification('正在加载人脸检测模型...');
                 await faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
                 await faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
                 await faceapi.nets.faceExpressionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
                 console.log('Face API models loaded');
+                showNotification('人脸检测模型加载完成！');
                 return true;
             } catch (err) {
                 console.error('Failed to load Face API models:', err);
-                showError('无法加载人脸检测模型');
+                showError('无法加载人脸检测模型: ' + err.message);
                 return false;
             }
         }
@@ -846,6 +983,7 @@
         // 开启摄像头
         startBtn.addEventListener('click', async () => {
             try {
+                showNotification('正在启动摄像头...');
                 await loadFaceAPIModels();
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: { width: 640, height: 480, facingMode: 'user' },
@@ -860,8 +998,10 @@
                 stopBtn.disabled = false;
                 isRunning = true;
                 detectFaces();
+                showNotification('摄像头已启动，开始检测人脸...');
             } catch (err) {
                 showError('无法访问摄像头: ' + err.message);
+                console.error('Camera error:', err);
             }
         });
         
@@ -896,13 +1036,26 @@
                     document.getElementById('faceStatus').style.color = '#27ae60';
                     document.getElementById('faceCount').textContent = detections.length;
                     updateEmotion(detections[0].expressions);
-                    
-                    // 记录情绪
+
+                    // 记录情绪到后端
                     const expressions = detections[0].expressions;
                     let maxEmotion = 'neutral', maxValue = 0;
                     for (let key in expressions) {
                         if (expressions[key] > maxValue) { maxValue = expressions[key]; maxEmotion = key; }
                     }
+
+                    // 发送情绪到后端（异步，不阻塞）
+                    try {
+                        fetch(`${API_BASE}/vision/emotion`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ frame: video.toDataURL() })
+                        }).catch(err => console.error('发送情绪数据失败:', err));
+                    } catch (err) {
+                        console.error('发送情绪数据失败:', err);
+                    }
+
+                    // 添加到本地记录
                     addEmotionRecord(maxEmotion, maxValue);
                 } else {
                     document.getElementById('faceStatus').textContent = '未检测到';
@@ -911,7 +1064,11 @@
                     document.getElementById('emotionStatus').textContent = '-';
                     document.getElementById('emotionBar').style.display = 'none';
                 }
-            } catch (err) { console.error('Face detection error:', err); }
+            } catch (err) {
+                console.error('Face detection error:', err);
+                document.getElementById('faceStatus').textContent = '检测错误';
+                document.getElementById('faceStatus').style.color = '#e74c3c';
+            }
             animationId = requestAnimationFrame(detectFaces);
         }
         
@@ -940,7 +1097,7 @@
             if (isSpeaking) { interruptSpeech(); }
             else { if (!isListening) { startListening(); } else { stopListening(); } }
         });
-        
+
         function interruptSpeech() {
             speechSynthesis.cancel();
             isSpeaking = false;
@@ -948,12 +1105,13 @@
             voiceBtn.classList.remove('speaking');
             startListening();
         }
-        
+
         function startListening() {
             if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
                 showError('您的浏览器不支持语音识别，请使用Chrome浏览器');
                 return;
             }
+            showNotification('开始监听语音...');
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
             recognition.lang = 'zh-CN';
@@ -966,14 +1124,24 @@
             };
             recognition.onresult = (event) => {
                 const text = event.results[0][0].transcript;
+                console.log('语音识别结果:', text);
                 messageInput.value = text;
                 sendMessage();
             };
-            recognition.onerror = (event) => { console.error('Speech recognition error:', event.error); stopListening(); };
-            recognition.onend = () => { stopListening(); };
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                showError('语音识别出错: ' + event.error);
+                stopListening();
+            };
+            recognition.onend = () => {
+                stopListening();
+                if (!isSpeaking) {
+                    showNotification('语音识别已结束');
+                }
+            };
             recognition.start();
         }
-        
+
         function stopListening() {
             if (recognition) { recognition.stop(); }
             isListening = false;

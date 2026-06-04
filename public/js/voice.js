@@ -28,12 +28,28 @@ function unlockTTS() {
 }
 
 export function init() {
-  // 首次用户交互时解锁 TTS
-  document.addEventListener('click', unlockTTS, { once: true });
-  document.addEventListener('keydown', unlockTTS, { once: true });
+  unlockTTS();
+
+  // 页面加载后提前发起麦克风权限请求（安全上下文下 getUserMedia 无需用户手势）
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then(mic => mic.getTracks().forEach(t => t.stop()))
+      .catch(() => {});
+  }
 
   const voiceBtn = document.getElementById('voiceBtn');
   const wakeBtn = document.getElementById('wakeBtn');
+
+  // 检查浏览器是否支持语音识别
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    voiceBtn.disabled = true;
+    voiceBtn.title = '当前浏览器不支持语音识别';
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    voiceBtn.disabled = true;
+    voiceBtn.title = '当前页面不是安全上下文（需要 HTTPS 或 localhost）';
+  }
 
   voiceBtn.addEventListener('click', () => {
     if (isSpeaking) {
@@ -146,7 +162,7 @@ function startListening() {
     if (event.error === 'no-speech') {
       voiceStatus.textContent = '未检测到语音，请靠近麦克风重试';
     } else if (event.error === 'not-allowed') {
-      showError('麦克风权限被拒绝，请在浏览器地址栏左侧允许麦克风访问');
+      showError('麦克风权限被拒绝，请在浏览器地址栏左侧🔒或🔒图标处点击，将"麦克风"设为"允许"，然后刷新页面重新尝试');
     } else if (event.error === 'audio-capture') {
       showError('未检测到麦克风，请连接麦克风设备');
     } else if (event.error !== 'aborted' && event.error !== 'network') {
@@ -157,7 +173,6 @@ function startListening() {
   };
 
   recognition.onend = () => {
-    // 优先使用 finalTranscript，fallback 到 messageInput 中的 interim
     const text = finalTranscript || messageInput.value.trim();
     if (text) {
       voiceStatus.textContent = '识别完成: "' + text + '"';

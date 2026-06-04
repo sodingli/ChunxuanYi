@@ -46,7 +46,7 @@ def get_memories(session_id: str) -> list[dict]:
 def add_memory(session_id: str, content: str, mtype: str = "conversation") -> dict:
     path = os.path.join(MEMORIES_DIR, f"{session_id}.json")
     memories = _read_json(path, [])
-    item = {"id": int(time.time() * 1000), "content": content, "type": mtype, "timestamp": _now_iso()}
+    item = {"id": int(time.time() * 1000), "content": content, "mtype": mtype, "timestamp": _now_iso()}
     memories.append(item)
     _write_json(path, memories)
     return item

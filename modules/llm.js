@@ -53,7 +53,18 @@ async function callAPI(prompt, maxTokens = 200) {
   throw new Error('Unknown API response');
 }
 
+function sanitizeInput(input) {
+  if (typeof input !== 'string') return '';
+  return input
+    .replace(/[<>]/g, '')
+    .replace(/["""]/g, "'")
+    .replace(/\n/g, ' ')
+    .trim()
+    .slice(0, 500);
+}
+
 async function chat(userInput, context = {}) {
+  const input = sanitizeInput(userInput);
   const hour = new Date().getHours();
   const timeOfDay = hour < 6 ? '深夜' : hour < 9 ? '早晨' : hour < 12 ? '上午' : hour < 14 ? '中午' : hour < 18 ? '下午' : hour < 21 ? '傍晚' : '晚上';
   const timeNote = `当前时间：${timeOfDay}（${hour}点），根据时间调整问候和关心内容。`;
@@ -71,13 +82,14 @@ async function chat(userInput, context = {}) {
   ];
   const diversify = diversifiers[Math.floor(Math.random() * diversifiers.length)];
 
-  const prompt = SYSTEM_PROMPT + '\n\n' + timeNote + memoryContext + '\n\n【重要】' + diversify + '\n\n【当前对话】：\n老人说：「' + userInput + '」\n\n请回复：';
+  const prompt = SYSTEM_PROMPT + '\n\n' + timeNote + memoryContext + '\n\n【重要】' + diversify + '\n\n【当前对话】：\n老人说：「' + input + '」\n\n请回复：';
   return await callAPI(prompt);
 }
 
 async function analyzeEmotion(text) {
+  const input = sanitizeInput(text);
   const prompt = `分析情绪，返回JSON：
-用户输入：「${text}」
+用户输入：「${input}」
 
 返回格式：
 {

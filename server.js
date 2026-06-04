@@ -26,10 +26,14 @@ app.post('/api/config/key', (req, res) => {
   res.json({ ok: true, message: 'API Key 已设置' });
 });
 
+function validateString(val, maxLen = 1000) {
+  return typeof val === 'string' && val.length > 0 && val.length <= maxLen;
+}
+
 // LLM 对话
 app.post('/api/chat', async (req, res) => {
   const { message, context } = req.body;
-  if (!message) return res.status(400).json({ error: 'message is required' });
+  if (!validateString(message)) return res.status(400).json({ error: 'message is required (max 1000 chars)' });
 
   try {
     const reply = await require('./modules/llm').chat(message, context);
@@ -43,7 +47,7 @@ app.post('/api/chat', async (req, res) => {
 // 情绪分析
 app.post('/api/emotion', async (req, res) => {
   const { text } = req.body;
-  if (!text) return res.status(400).json({ error: 'text is required' });
+  if (!validateString(text)) return res.status(400).json({ error: 'text is required (max 1000 chars)' });
 
   try {
     const result = await require('./modules/llm').analyzeEmotion(text);
@@ -76,21 +80,21 @@ app.get('/api/memory', (req, res) => {
 
 app.post('/api/memory', (req, res) => {
   const { content, type } = req.body;
-  if (!content) return res.status(400).json({ error: 'content is required' });
+  if (!validateString(content)) return res.status(400).json({ error: 'content is required (max 1000 chars)' });
   const item = require('./modules/memory-store').addMemory(content, type);
   res.json(item);
 });
 
 app.post('/api/memory/reminder', (req, res) => {
   const { content, date } = req.body;
-  if (!content || !date) return res.status(400).json({ error: 'content and date are required' });
+  if (!validateString(content) || !validateString(date, 20)) return res.status(400).json({ error: 'content and date are required' });
   const item = require('./modules/memory-store').addReminder(content, date);
   res.json(item);
 });
 
 app.post('/api/memory/health', (req, res) => {
   const { content, date } = req.body;
-  if (!content || !date) return res.status(400).json({ error: 'content and date are required' });
+  if (!validateString(content) || !validateString(date, 20)) return res.status(400).json({ error: 'content and date are required' });
   const item = require('./modules/memory-store').addHealthReminder(content, date);
   res.json(item);
 });

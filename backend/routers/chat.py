@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from backend.models import ChatRequest, ChatResponse, EmotionRequest, EmotionResponse, PersonaUpdate, Persona
-from backend.services.llm import call_qwen
+from backend.services.llm import call_qwen, sanitize_input
 from backend.services.emotion import analyze_text_emotion
 from backend.services.memory import get_persona, update_persona, add_memory, get_memory_context
 
@@ -9,6 +9,7 @@ router = APIRouter()
 
 @router.post("", response_model=ChatResponse)
 async def chat(req: ChatRequest):
+    sanitized_input = sanitize_input(req.user_input)
     persona = get_persona(req.session_id)
     memory_ctx = get_memory_context(req.session_id)
 
@@ -26,7 +27,7 @@ async def chat(req: ChatRequest):
    - {persona.custom_instructions}{memory_ctx}
 
 【当前对话】：
-老人说：「{req.user_input}」
+老人说：「{sanitized_input}」
 
 请回复："""
 
@@ -36,12 +37,12 @@ async def chat(req: ChatRequest):
         raise HTTPException(status_code=503, detail=f"LLM调用失败: {e}")
 
     # 保存记忆
-    add_memory(req.session_id, f"用户说: {req.user_input}", "conversation")
+    add_memory(req.session_id, f"用户说: {sanitized_input}", "conversation")
     add_memory(req.session_id, f"{persona.name}回复: {reply}", "conversation")
 
     # 分析情绪
     try:
-        emotion_result = await analyze_text_emotion(req.user_input)
+        emotion_result = await analyze_text_emotion(sanitized_input)
         emotion = emotion_result.get("emotion", "neutral")
     except Exception:
         emotion = "neutral"
@@ -51,8 +52,9 @@ async def chat(req: ChatRequest):
 
 @router.post("/emotion", response_model=EmotionResponse)
 async def analyze_emotion(req: EmotionRequest):
+    sanitized_text = sanitize_input(req.text)
     try:
-        result = await analyze_text_emotion(req.text)
+        result = await analyze_text_emotion(sanitized_text)
         return EmotionResponse(
             emotion=result.get("emotion", "neutral"),
             emotion_cn=result.get("emotion_cn", "中性"),

@@ -54,21 +54,11 @@ class VisionFrameResult(BaseModel):
     timestamp: float
 
 
-# --- Voice ---
-class AsrRequest(BaseModel):
-    audio: str
-    format: str = "wav"
-
-
-class AsrResponse(BaseModel):
-    text: str
+class EmotionDetectionResult(BaseModel):
     emotion: str
-    emotion_confidence: float
-    emotion_source: str = "voice"
-
-
-class TtsRequest(BaseModel):
-    text: str
+    emotion_cn: str
+    confidence: float
+    timestamp: float
 
 
 # --- Reminder ---
