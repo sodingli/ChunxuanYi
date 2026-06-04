@@ -264,4 +264,169 @@ class InteractionDecision:
         return self.config["cooldown"]["different_category"]
 
 
+import random
+import os
+
+
+class ResponseGenerator:
+    """话术生成器 - 生成个性化、情境化的回复话术"""
+
+    # 积极共情模板库
+    POSITIVE_TEMPLATES = {
+        "Happiness": [
+            "看到{address_as}笑得这么开心，我也跟着高兴了",
+            "{address_as}今天心情真好，有什么喜事吗",
+            "您这笑容真暖人心"
+        ],
+        "Excitement": [
+            "{address_as}您看起来很兴奋啊",
+            "是有什么好消息吗",
+            "您这么开心，跟我分享分享"
+        ],
+        "Satisfaction": [
+            "看得出来{address_as}很满意",
+            "看您这表情，事情办得挺顺利",
+            "看您这样子心情不错"
+        ],
+        "Calm": [
+            "{address_as}看起来很平静",
+            "您今天状态不错",
+            "看您这么安详我也放心了"
+        ],
+        "Pride": [
+            "{address_as}今天挺自豪的",
+            "是不是有什么值得骄傲的事",
+            "您这表情让我也感到开心"
+        ]
+    }
+
+    # 消极关怀模板库
+    NEGATIVE_TEMPLATES = {
+        "Sadness": [
+            "{address_as}，我在这儿陪着您",
+            "您是不是有点不开心",
+            "有什么心事跟我说说"
+        ],
+        "Anxiety": [
+            "{address_as}，别担心，慢慢来",
+            "您是不是有点着急",
+            "放松点，有我呢"
+        ],
+        "Fear": [
+            "{address_as}，别怕，我一直在",
+            "没事的，您别紧张",
+            "我陪着您，不用怕"
+        ],
+        "Anger": [
+            "{address_as}，别生气，对身体不好",
+            "您是不是遇到什么不顺心的事了",
+            "消消气，跟我说说怎么回事"
+        ],
+        "Disappointment": [
+            "{address_as}，别失落",
+            "事情不一定都如意，慢慢来",
+            "有我陪着您呢"
+        ]
+    }
+
+    async def generate_response(self,
+                                emotion: str,
+                                strategy: str,
+                                persona,
+                                context: Dict) -> str:
+        """
+        生成回复话术
+
+        Args:
+            emotion: 情绪名称
+            strategy: 策略名称
+            persona: 角色对象
+            context: 上下文信息
+
+        Returns:
+            生成的话术
+        """
+        # 先尝试从模板生成
+        template_response = self._generate_from_template(
+            emotion, strategy, persona, context
+        )
+
+        if template_response:
+            return template_response
+
+        # 如果没有合适的模板，调用LLM生成
+        return await self._generate_from_llm(
+            emotion, strategy, persona, context
+        )
+
+    def _generate_from_template(self,
+                                emotion: str,
+                                strategy: str,
+                                persona,
+                                context: Dict) -> Optional[str]:
+        """从模板生成话术"""
+        if strategy == "POSITIVE_EMPATHY":
+            templates = self.POSITIVE_TEMPLATES.get(emotion, [])
+        elif strategy == "NEGATIVE_CARE":
+            templates = self.NEGATIVE_TEMPLATES.get(emotion, [])
+        else:
+            return None
+
+        if not templates:
+            return None
+
+        # 随机选择一个模板
+        template = random.choice(templates)
+
+        # 填充变量
+        return template.format(
+            name=persona.name,
+            address_as=persona.address_as
+        )
+
+    async def _generate_from_llm(self,
+                                 emotion: str,
+                                 strategy: str,
+                                 persona,
+                                 context: Dict) -> str:
+        """使用LLM生成话术"""
+        from backend.services.llm import call_qwen
+        from backend.config import EMOTION_EMPATHY_TEMPLATE_PATH, EMOTION_CARE_TEMPLATE_PATH
+
+        # 选择模板
+        if strategy == "POSITIVE_EMPATHY":
+            template_path = EMOTION_EMPATHY_TEMPLATE_PATH
+        else:
+            template_path = EMOTION_CARE_TEMPLATE_PATH
+
+        # 加载模板
+        if os.path.exists(template_path):
+            with open(template_path, 'r', encoding='utf-8') as f:
+                template = f.read()
+        else:
+            # 兜底模板
+            template = "你是「{name}」，用简短温暖的话回应{address_as}的{emotion_cn}情绪："
+
+        # 填充模板
+        prompt = template.format(
+            name=persona.name,
+            address_as=persona.address_as,
+            emotion_cn=context.get("emotion_cn", emotion),
+            intensity=context.get("intensity", ""),
+            duration=context.get("duration", 0),
+            style=persona.style
+        )
+
+        try:
+            response = await call_qwen(prompt, max_tokens=100)
+            return response.strip()
+        except Exception as e:
+            print(f"[Agent] LLM generation failed: {e}")
+            # LLM失败时返回模板生成
+            return self._generate_from_template(emotion, strategy, persona, context) or "我在这儿陪着您"
+
+
+
+
+
 

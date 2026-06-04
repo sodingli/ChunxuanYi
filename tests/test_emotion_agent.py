@@ -120,3 +120,65 @@ def test_cooldown_calculation():
     assert cooldown3 == 30
 
 
+@pytest.mark.asyncio
+async def test_response_generator_positive():
+    """测试积极共情话术生成"""
+    from backend.models import Persona
+
+    generator = ResponseGenerator()
+    persona = Persona(
+        name="颐",
+        address_as="爷爷",
+        style="句子短，不用网络用语，50字内"
+    )
+
+    context = {
+        "emotion": "Happiness",
+        "emotion_cn": "快乐",
+        "intensity": "中等",
+        "duration": 3.5
+    }
+
+    response = await generator.generate_response(
+        emotion="Happiness",
+        strategy="POSITIVE_EMPATHY",
+        persona=persona,
+        context=context
+    )
+
+    assert response is not None
+    assert len(response) > 0
+    assert len(response) <= 50  # 遵循style限制
+
+
+@pytest.mark.asyncio
+async def test_response_generator_negative():
+    """测试消极关怀话术生成"""
+    from backend.models import Persona
+
+    generator = ResponseGenerator()
+    persona = Persona(
+        name="颐",
+        address_as="爷爷",
+        style="句子短，不用网络用语，50字内"
+    )
+
+    context = {
+        "emotion": "Sadness",
+        "emotion_cn": "悲伤",
+        "intensity": "强烈",
+        "duration": 4.2
+    }
+
+    response = await generator.generate_response(
+        emotion="Sadness",
+        strategy="NEGATIVE_CARE",
+        persona=persona,
+        context=context
+    )
+
+    assert response is not None
+    assert len(response) > 0
+
+
+
