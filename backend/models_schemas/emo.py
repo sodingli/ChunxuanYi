@@ -38,6 +38,7 @@ class EmoDetectionResult(BaseModel):
     """EMO检测结果"""
     faces: List[FaceEmotion] = Field(default_factory=list, description="检测到的人脸列表")
     timestamp: float = Field(default_factory=time.time, description="时间戳")
+    agent_message: Optional[str] = Field(None, description="Agent触发的消息")
 
 
 class EmoDetectRequest(BaseModel):

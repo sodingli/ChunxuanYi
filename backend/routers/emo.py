@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from typing import Optional
 from backend.models_schemas.emo import EmoDetectRequest, EmoDetectionResult, FaceEmotion
 from backend.services.emo_detector import EmoDetector
 from backend.services.emotion_agent import EmotionAnalyzer, InteractionStrategy, InteractionDecision, ResponseGenerator
@@ -97,19 +98,21 @@ async def detect_emotion(req: EmoDetectRequest):
             faces.append(face_emotion)
 
         # 检查是否触发Agent
+        agent_message = None
         if dominant:
-            await _check_and_trigger_agent(req.session_id, dominant)
+            agent_message = await _check_and_trigger_agent(req.session_id, dominant)
 
         return EmoDetectionResult(
             faces=faces,
-            timestamp=result["timestamp"]
+            timestamp=result["timestamp"],
+            agent_message=agent_message
         )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Detection failed: {str(e)}")
 
 
-async def _check_and_trigger_agent(session_id: str, emotion_state: dict):
+async def _check_and_trigger_agent(session_id: str, emotion_state: dict) -> Optional[str]:
     """检查并触发Agent"""
     # 添加持续时间
     emotion_state["duration"] = _emotion_agent["analyzer"].get_duration()
@@ -122,7 +125,7 @@ async def _check_and_trigger_agent(session_id: str, emotion_state: dict):
     )
 
     if not should_trigger:
-        return
+        return None
 
     # 选择策略
     strategy = _emotion_agent["strategy"].select_strategy(emotion_state)
@@ -147,8 +150,8 @@ async def _check_and_trigger_agent(session_id: str, emotion_state: dict):
     _emotion_agent["last_trigger_time"] = time.time()
     _emotion_agent["last_category"] = emotion_state["category"]
 
-    # TODO: 将response发送到前端（通过WebSocket或在响应中返回）
     print(f"[Agent] Triggered: {strategy} -> {response}")
+    return response
 
 
 def _get_emotion_category(emotion: str) -> str:

@@ -1,0 +1,19 @@
+{
+  "reminders": [
+    {
+      "id": 1779269027604,
+      "content": "吃降压药",
+      "date": "2026-05-20",
+      "is_health": false,
+      "completed": false
+    },
+    {
+      "id": 1779271674332,
+      "content": "测试提醒",
+      "date": "2026-05-20",
+      "is_health": false,
+      "completed": false
+    }
+  ],
+  "health": []
+}

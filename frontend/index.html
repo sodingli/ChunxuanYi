@@ -657,7 +657,6 @@
         </div>
     </div>
     
-    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     
     <script>
         // 全局变量
@@ -966,27 +965,11 @@
         }
         
         // 加载 face-api 模型
-        async function loadFaceAPIModels() {
-            try {
-                showNotification('正在加载人脸检测模型...');
-                await faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-                await faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-                await faceapi.nets.faceExpressionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-                console.log('Face API models loaded');
-                showNotification('人脸检测模型加载完成！');
-                return true;
-            } catch (err) {
-                console.error('Failed to load Face API models:', err);
-                showError('无法加载人脸检测模型: ' + err.message);
-                return false;
-            }
-        }
         
         // 开启摄像头
         startBtn.addEventListener('click', async () => {
             try {
                 showNotification('正在启动摄像头...');
-                await loadFaceAPIModels();
                 stream = await navigator.mediaDevices.getUserMedia({
                     video: { width: 640, height: 480, facingMode: 'user' },
                     audio: false
@@ -1024,53 +1007,65 @@
             document.getElementById('emotionBar').style.display = 'none';
         });
         
-        // 人脸检测
+        // 人脸检测 - 使用EMO API
         async function detectFaces() {
             if (!isRunning) return;
+
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
             try {
-                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions();
-                if (detections && detections.length > 0) {
-                    const resizedDetections = faceapi.resizeResults(detections, { width: canvas.width, height: canvas.height });
-                    faceapi.draw.drawDetections(canvas, resizedDetections);
-                    faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
+                // 捕获当前帧
+                const frameData = canvas.toDataURL('image/jpeg', 0.8);
+
+                // 调用EMO API
+                const response = await fetch(`${API_BASE}/emo/detect`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        frame: frameData,
+                        session_id: 'default'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                // 检查Agent触发消息
+                if (result.agent_message) {
+                    const now = Date.now();
+                    if (now - lastProactiveTime > PROACTIVE_COOLDOWN) {
+                        console.log('[Agent] Received message:', result.agent_message);
+                        addMessage(result.agent_message, 'ai');
+                        speak(result.agent_message);
+                        lastProactiveTime = now;
+                    }
+                }
+
+                // 更新UI
+                if (result.faces && result.faces.length > 0) {
+                    const face = result.faces[0];
+
+                    // 更新人脸状态
                     document.getElementById('faceStatus').textContent = '✅ 已检测';
                     document.getElementById('faceStatus').style.color = '#27ae60';
-                    document.getElementById('faceCount').textContent = detections.length;
-                    updateEmotion(detections[0].expressions);
+                    document.getElementById('faceCount').textContent = result.faces.length;
 
-                    // 记录情绪到后端
-                    const expressions = detections[0].expressions;
-                    let maxEmotion = 'neutral', maxValue = 0;
-                    for (let key in expressions) {
-                        if (expressions[key] > maxValue) { maxValue = expressions[key]; maxEmotion = key; }
+                    // 更新情绪显示
+                    document.getElementById('emotionStatus').textContent = face.emotion_cn;
+
+                    // 显示top情绪
+                    displayTopEmotions(face.top_emotions);
+
+                    // 绘制人脸框
+                    drawFaceBox(face.box);
+
+                    // 添加情绪记录
+                    if (face.top_emotions && face.top_emotions.length > 0) {
+                        addEmotionRecord(face.primary_emotion, face.top_emotions[0].score);
                     }
-
-                    // 发送情绪到后端（异步，不阻塞）
-                    try {
-                        fetch(`${API_BASE}/vision/emotion`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ frame: video.toDataURL(), session_id: 'default' })
-                        })
-                        .then(resp => resp.json())
-                        .then(data => {
-                            // 如果后端触发了主动关怀，且冷却时间已过
-                            const now = Date.now();
-                            if (data.should_trigger && data.proactive_message && (now - lastProactiveTime > PROACTIVE_COOLDOWN)) {
-                                console.log('触发主动关怀:', data.proactive_message);
-                                addMessage(data.proactive_message, 'ai');
-                                speak(data.proactive_message);
-                                lastProactiveTime = now;
-                            }
-                        })
-                        .catch(err => console.error('发送情绪数据失败:', err));
-                    } catch (err) {
-                        console.error('发送情绪数据失败:', err);
-                    }
-
-                    // 添加到本地记录
-                    addEmotionRecord(maxEmotion, maxValue);
                 } else {
                     document.getElementById('faceStatus').textContent = '未检测到';
                     document.getElementById('faceStatus').style.color = '#e74c3c';
@@ -1079,33 +1074,47 @@
                     document.getElementById('emotionBar').style.display = 'none';
                 }
             } catch (err) {
-                console.error('Face detection error:', err);
+                console.error('EMO detection error:', err);
                 document.getElementById('faceStatus').textContent = '检测错误';
                 document.getElementById('faceStatus').style.color = '#e74c3c';
             }
-            animationId = requestAnimationFrame(detectFaces);
+
+            // 控制帧率（5fps = 200ms）
+            setTimeout(() => {
+                animationId = requestAnimationFrame(detectFaces);
+            }, 200);
         }
-        
-        // 更新情绪
-        function updateEmotion(expressions) {
-            const emotionMap = {
-                happy: '😊 开心', sad: '😢 悲伤', angry: '😠 愤怒',
-                fearful: '😨 恐惧', surprised: '😲 惊讶', neutral: '😐 中性', disgusted: '🤢 厌恶'
-            };
-            let maxEmotion = 'neutral', maxValue = 0;
-            for (let key in expressions) {
-                if (expressions[key] > maxValue) { maxValue = expressions[key]; maxEmotion = key; }
-            }
-            document.getElementById('emotionStatus').textContent = emotionMap[maxEmotion] || maxEmotion;
-            document.getElementById('emotionBar').style.display = 'block';
-            document.getElementById('happyBar').style.width = (expressions.happy * 100).toFixed(1) + '%';
-            document.getElementById('happyValue').textContent = (expressions.happy * 100).toFixed(1) + '%';
-            document.getElementById('sadBar').style.width = (expressions.sad * 100).toFixed(1) + '%';
-            document.getElementById('sadValue').textContent = (expressions.sad * 100).toFixed(1) + '%';
-            document.getElementById('neutralBar').style.width = (expressions.neutral * 100).toFixed(1) + '%';
-            document.getElementById('neutralValue').textContent = (expressions.neutral * 100).toFixed(1) + '%';
+
+        // 绘制人脸框
+        function drawFaceBox(box) {
+            const [x, y, w, h] = box;
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, y, w, h);
         }
-        
+
+        // 显示Top情绪
+        function displayTopEmotions(topEmotions) {
+            const container = document.getElementById('emotionBar');
+            container.style.display = 'block';
+            container.innerHTML = '';
+
+            if (!topEmotions || topEmotions.length === 0) return;
+
+            topEmotions.slice(0, 3).forEach(emotion => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'emotion-item';
+                itemDiv.innerHTML = `
+                    <span class="emotion-label">${emotion.name_cn}</span>
+                    <div class="emotion-progress">
+                        <div class="emotion-fill" style="width: ${(emotion.score * 100).toFixed(1)}%; background: #667eea;"></div>
+                    </div>
+                    <span class="emotion-value">${(emotion.score * 100).toFixed(1)}%</span>
+                `;
+                container.appendChild(itemDiv);
+            });
+        }
+
         // 语音识别
         voiceBtn.addEventListener('click', () => {
             if (isSpeaking) { interruptSpeech(); }
