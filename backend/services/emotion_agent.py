@@ -124,3 +124,144 @@ class EmotionAnalyzer:
         last_time = self.emotion_history[-1]["timestamp"]
         return last_time - first_time
 
+
+class InteractionStrategy:
+    """策略选择器 - 根据情绪状态选择交互策略"""
+
+    STRATEGIES = [
+        "POSITIVE_EMPATHY",     # 积极共情
+        "NEGATIVE_CARE",        # 消极关怀
+        "EMOTION_TRANSITION",   # 情绪转换引导
+        "MIXED_EMOTION",        # 混合情绪探索
+        "SILENT_PRESENCE"       # 沉默陪伴
+    ]
+
+    def select_strategy(self, emotion_state: Dict) -> str:
+        """
+        选择交互策略
+
+        Args:
+            emotion_state: 情绪状态字典
+
+        Returns:
+            策略名称
+        """
+        category = emotion_state.get("category")
+        ratio = emotion_state.get("ratio", 0)
+        avg_score = emotion_state.get("avg_score", 0)
+
+        # 情绪不够稳定，使用混合情绪策略
+        if ratio < 0.7:
+            return "MIXED_EMOTION"
+
+        # 根据类别选择策略
+        if category == "POSITIVE":
+            return "POSITIVE_EMPATHY"
+        elif category == "NEGATIVE":
+            # 消极情绪根据强度选择
+            if avg_score > 0.7:
+                return "NEGATIVE_CARE"
+            else:
+                return "SILENT_PRESENCE"
+        else:
+            return "MIXED_EMOTION"
+
+
+class InteractionDecision:
+    """交互决策引擎 - 决定是否触发、何时触发"""
+
+    def __init__(self):
+        self.config = EMOTION_AGENT_CONFIG
+
+    def should_trigger(self,
+                      emotion_state: Dict,
+                      last_trigger_time: float,
+                      user_speaking: bool) -> bool:
+        """
+        判断是否应该触发交互
+
+        Args:
+            emotion_state: 情绪状态
+            last_trigger_time: 上次触发时间（unix timestamp）
+            user_speaking: 用户是否正在说话
+
+        Returns:
+            是否触发
+        """
+        # 用户正在说话时不打断
+        if user_speaking:
+            return False
+
+        # 检查置信度阈值
+        avg_score = emotion_state.get("avg_score", 0)
+        if avg_score < self.config["trigger_threshold"]["min_confidence"]:
+            return False
+
+        # 检查持续时间
+        duration = emotion_state.get("duration", 0)
+        if duration < self.config["trigger_threshold"]["min_duration"]:
+            return False
+
+        # 检查稳定性
+        ratio = emotion_state.get("ratio", 0)
+        if ratio < self.config["trigger_threshold"]["stability_ratio"]:
+            return False
+
+        # 检查冷却时间
+        current_time = time.time()
+        if last_trigger_time > 0:
+            elapsed = current_time - last_trigger_time
+            # 这里简化处理，实际需要传入last_category
+            min_cooldown = self.config["cooldown"]["different_category"]
+            if elapsed < min_cooldown:
+                return False
+
+        return True
+
+    def get_priority(self, strategy: str, intensity: float) -> int:
+        """
+        获取策略优先级
+
+        Args:
+            strategy: 策略名称
+            intensity: 情绪强度
+
+        Returns:
+            优先级数值（越大越优先）
+        """
+        base_priority = self.config["priority"].get(strategy, 1)
+
+        # 强烈情绪提升优先级
+        if intensity > 0.7:
+            return base_priority + 5
+
+        return base_priority
+
+    def calculate_cooldown(self,
+                          last_category: str,
+                          current_category: str,
+                          intensity: float) -> float:
+        """
+        计算冷却时间
+
+        Args:
+            last_category: 上次情绪类别
+            current_category: 当前情绪类别
+            intensity: 当前情绪强度
+
+        Returns:
+            冷却时间（秒）
+        """
+        # 强烈情绪缩短冷却时间
+        if intensity > 0.7:
+            return self.config["cooldown"]["high_intensity"]
+
+        # 同类情绪
+        if last_category == current_category:
+            return self.config["cooldown"]["same_category"]
+
+        # 异类情绪（情绪转换）
+        return self.config["cooldown"]["different_category"]
+
+
+

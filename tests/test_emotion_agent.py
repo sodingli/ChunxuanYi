@@ -61,3 +61,62 @@ def test_calculate_stability(analyzer):
     stability = analyzer.calculate_stability()
     assert stability == 1.0  # 完全稳定
 
+
+def test_strategy_selection_positive():
+    """测试积极情绪策略选择"""
+    strategy = InteractionStrategy()
+    emotion_state = {
+        "emotion": "Happiness",
+        "category": "POSITIVE",
+        "ratio": 0.8,
+        "avg_score": 0.75
+    }
+    selected = strategy.select_strategy(emotion_state)
+    assert selected == "POSITIVE_EMPATHY"
+
+def test_strategy_selection_negative():
+    """测试消极情绪策略选择"""
+    strategy = InteractionStrategy()
+    emotion_state = {
+        "emotion": "Sadness",
+        "category": "NEGATIVE",
+        "ratio": 0.8,
+        "avg_score": 0.65
+    }
+    selected = strategy.select_strategy(emotion_state)
+    assert selected == "NEGATIVE_CARE"
+
+def test_interaction_decision_should_trigger():
+    """测试触发决策"""
+    decision = InteractionDecision()
+    emotion_state = {
+        "emotion": "Anxiety",
+        "category": "NEGATIVE",
+        "ratio": 0.8,
+        "avg_score": 0.7,
+        "duration": 3.0
+    }
+    should = decision.should_trigger(
+        emotion_state,
+        last_trigger_time=0,
+        user_speaking=False
+    )
+    assert should is True
+
+def test_cooldown_calculation():
+    """测试冷却时间计算"""
+    decision = InteractionDecision()
+
+    # 同类情绪
+    cooldown1 = decision.calculate_cooldown("POSITIVE", "POSITIVE", 0.6)
+    assert cooldown1 == 60
+
+    # 异类情绪
+    cooldown2 = decision.calculate_cooldown("POSITIVE", "NEGATIVE", 0.6)
+    assert cooldown2 == 30
+
+    # 强烈情绪
+    cooldown3 = decision.calculate_cooldown("POSITIVE", "POSITIVE", 0.75)
+    assert cooldown3 == 30
+
+
