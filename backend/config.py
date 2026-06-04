@@ -12,6 +12,11 @@ MEMORIES_DIR = os.path.join(DATA_DIR, "memories")
 EMOTIONS_DIR = os.path.join(DATA_DIR, "emotions")
 REMINDERS_FILE = os.path.join(DATA_DIR, "reminders.json")
 
+# 提示词模板目录
+PROMPTS_DIR = os.path.join(os.path.dirname(__file__), "prompts")
+PERSONA_TEMPLATE_PATH = os.path.join(PROMPTS_DIR, "persona_template.txt")
+PROACTIVE_CARE_TEMPLATE_PATH = os.path.join(PROMPTS_DIR, "proactive_care_template.txt")
+
 DEFAULT_PERSONA = {
     "name": "颐",
     "gender": "neutral",
@@ -19,4 +24,12 @@ DEFAULT_PERSONA = {
     "address_as": "爷爷",
     "style": "句子短，不用网络用语，50字内",
     "custom_instructions": "主动关心身体和饮食",
+}
+
+# TTS语音配置
+TTS_CONFIG = {
+    "rate": 0.85,  # 语速：0.85倍速（稍慢，适合老人）
+    "pitch": 1.1,  # 音调：1.1倍（稍温柔）
+    "volume": 1.0,  # 音量：正常
+    "voice_name": "zh-CN",  # 语音名称
 }

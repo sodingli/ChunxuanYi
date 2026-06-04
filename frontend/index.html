@@ -681,16 +681,18 @@
         let recognition = null;
         let currentUtterance = null;
         let isSpeaking = false;
-        
+
         // API配置
         const API_BASE = 'http://localhost:8008/api';
-        
+
         // 记忆系统
         let memories = [];
         let reminders = [];
         let healthReminders = [];
         let emotionRecords = [];
         let lastEmotionRecordTime = 0;  // 上次记录情绪的时间
+        let lastProactiveTime = 0;  // 上次主动关怀的时间
+        const PROACTIVE_COOLDOWN = 60000;  // 主动关怀冷却时间：60秒
         
         // 标签页切换
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1049,8 +1051,20 @@
                         fetch(`${API_BASE}/vision/emotion`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ frame: video.toDataURL() })
-                        }).catch(err => console.error('发送情绪数据失败:', err));
+                            body: JSON.stringify({ frame: video.toDataURL(), session_id: 'default' })
+                        })
+                        .then(resp => resp.json())
+                        .then(data => {
+                            // 如果后端触发了主动关怀，且冷却时间已过
+                            const now = Date.now();
+                            if (data.should_trigger && data.proactive_message && (now - lastProactiveTime > PROACTIVE_COOLDOWN)) {
+                                console.log('触发主动关怀:', data.proactive_message);
+                                addMessage(data.proactive_message, 'ai');
+                                speak(data.proactive_message);
+                                lastProactiveTime = now;
+                            }
+                        })
+                        .catch(err => console.error('发送情绪数据失败:', err));
                     } catch (err) {
                         console.error('发送情绪数据失败:', err);
                     }
@@ -1189,7 +1203,18 @@
                 speechSynthesis.cancel();
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'zh-CN';
-                utterance.rate = 0.9;
+                utterance.rate = 0.85;  // 语速稍慢，适合老人
+                utterance.pitch = 1.1;  // 音调稍温柔
+                utterance.volume = 1.0; // 音量正常
+
+                // 尝试选择更合适的中文语音
+                const voices = speechSynthesis.getVoices();
+                const zhVoice = voices.find(v => v.lang.includes('zh') && v.name.includes('Female'))
+                             || voices.find(v => v.lang.includes('zh'));
+                if (zhVoice) {
+                    utterance.voice = zhVoice;
+                }
+
                 isSpeaking = true;
                 speakingIndicator.classList.add('active');
                 voiceBtn.textContent = '🎤 打断我';
@@ -1233,6 +1258,14 @@
             initMemory();
             checkReminders();
             setInterval(checkReminders, 60000);
+
+            // 初始化语音列表（等待语音加载）
+            if ('speechSynthesis' in window) {
+                speechSynthesis.onvoiceschanged = () => {
+                    const voices = speechSynthesis.getVoices();
+                    console.log('可用语音:', voices.filter(v => v.lang.includes('zh')).map(v => v.name));
+                };
+            }
         });
     </script>
 </body>

@@ -3,8 +3,18 @@ from backend.models import ChatRequest, ChatResponse, EmotionRequest, EmotionRes
 from backend.services.llm import call_qwen, sanitize_input
 from backend.services.emotion import analyze_text_emotion
 from backend.services.memory import get_persona, update_persona, add_memory, get_memory_context
+from backend.config import PERSONA_TEMPLATE_PATH
+import os
 
 router = APIRouter()
+
+
+def _load_prompt_template(template_path: str) -> str:
+    """加载提示词模板文件"""
+    if os.path.exists(template_path):
+        with open(template_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    return ""
 
 
 @router.post("", response_model=ChatResponse)
@@ -13,23 +23,39 @@ async def chat(req: ChatRequest):
     persona = get_persona(req.session_id)
     memory_ctx = get_memory_context(req.session_id)
 
-    prompt = f"""你是「{persona.name}」，一个专门为独居老人设计的AI陪伴助手。
+    # 从模板文件加载提示词
+    template = _load_prompt_template(PERSONA_TEMPLATE_PATH)
+    if not template:
+        # 兜底：使用硬编码模板
+        template = """你是「{name}」，一个专门为独居老人设计的AI陪伴助手。
 
 【角色限定】：
-1. 身份：{persona.personality}，像子女一样关心老人
-2. 称呼：对男性用「爷爷」，对女性用「奶奶」，通用「您」
-3. 语言风格：{persona.style}
+1. 身份：{personality}，像子女一样关心老人
+2. 称呼：对男性用「爷爷」，对女性用「奶奶」，通用「您」。当前用户称呼：{address_as}
+3. 语言风格：{style}
 4. 行为准则：
    - 主动关心老人的身体、情绪、饮食
    - 记住老人说过的话（系统会提供记忆）
    - 在合适的时候，主动提起过去的话题
    - 如果发现老人情绪异常，要特别关注
-   - {persona.custom_instructions}{memory_ctx}
+   - {custom_instructions}
+
+{memory_context}
 
 【当前对话】：
-老人说：「{sanitized_input}」
+老人说：「{user_input}」
 
 请回复："""
+
+    prompt = template.format(
+        name=persona.name,
+        personality=persona.personality,
+        address_as=persona.address_as,
+        style=persona.style,
+        custom_instructions=persona.custom_instructions,
+        memory_context=memory_ctx,
+        user_input=sanitized_input
+    )
 
     try:
         reply = await call_qwen(prompt)
