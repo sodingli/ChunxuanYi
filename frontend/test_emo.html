@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>EMO情绪显示测试</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
+        button { padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #5568d3; }
+        .result { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px; }
+        .emotion-item { display: flex; align-items: center; margin: 10px 0; }
+        .emotion-label { width: 100px; font-weight: bold; }
+        .emotion-progress { flex: 1; height: 20px; background: #e0e0e0; border-radius: 10px; margin: 0 10px; overflow: hidden; }
+        .emotion-fill { height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); transition: width 0.3s; }
+        .emotion-value { width: 60px; text-align: right; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>EMO情绪识别测试</h1>
+        <p>测试后端EMO API和前端情绪显示</p>
+        
+        <button onclick="testEmoAPI()">测试EMO API</button>
+        
+        <div id="status" class="status" style="display:none;"></div>
+        
+        <div id="result" class="result" style="display:none;">
+            <h3>检测结果：</h3>
+            <div id="faceInfo"></div>
+            <div id="emotions"></div>
+            <div id="agentMessage"></div>
+        </div>
+    </div>
+
+    <script>
+        async function testEmoAPI() {
+            const statusDiv = document.getElementById('status');
+            const resultDiv = document.getElementById('result');
+            
+            statusDiv.style.display = 'block';
+            statusDiv.className = 'status';
+            statusDiv.textContent = '正在测试...';
+            resultDiv.style.display = 'none';
+            
+            // 创建测试图像
+            const canvas = document.createElement('canvas');
+            canvas.width = 640;
+            canvas.height = 480;
+            const ctx = canvas.getContext('2d');
+            
+            // 填充背景
+            ctx.fillStyle = '#cccccc';
+            ctx.fillRect(0, 0, 640, 480);
+            
+            // 绘制模拟人脸
+            ctx.fillStyle = '#b08060';
+            ctx.beginPath();
+            ctx.ellipse(320, 240, 100, 130, 0, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // 眼睛
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.arc(290, 220, 10, 0, 2 * Math.PI);
+            ctx.arc(350, 220, 10, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // 嘴巴（微笑）
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(320, 260, 40, 0.2, Math.PI - 0.2);
+            ctx.stroke();
+            
+            const frameData = canvas.toDataURL('image/jpeg', 0.8);
+            
+            try {
+                const response = await fetch('http://localhost:8008/api/emo/detect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        frame: frameData,
+                        session_id: 'test'
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+                }
+                
+                const data = await response.json();
+                
+                statusDiv.className = 'status success';
+                statusDiv.textContent = '✅ API调用成功';
+                
+                resultDiv.style.display = 'block';
+                
+                // 显示人脸信息
+                const faceInfoDiv = document.getElementById('faceInfo');
+                faceInfoDiv.innerHTML = `
+                    <p><strong>检测到人脸数：</strong>${data.faces.length}</p>
+                    ${data.agent_message ? `<p><strong>Agent消息：</strong>${data.agent_message}</p>` : ''}
+                `;
+                
+                // 显示情绪
+                const emotionsDiv = document.getElementById('emotions');
+                if (data.faces.length > 0) {
+                    const face = data.faces[0];
+                    let html = `
+                        <p><strong>主要情绪：</strong>${face.emotion_cn} (${face.category})</p>
+                        <p><strong>强度：</strong>${face.intensity} | <strong>趋势：</strong>${face.trend}</p>
+                        <h4>Top 3 情绪：</h4>
+                    `;
+                    
+                    face.top_emotions.slice(0, 3).forEach(emo => {
+                        html += `
+                            <div class="emotion-item">
+                                <span class="emotion-label">${emo.name_cn}</span>
+                                <div class="emotion-progress">
+                                    <div class="emotion-fill" style="width: ${(emo.score * 100).toFixed(1)}%"></div>
+                                </div>
+                                <span class="emotion-value">${(emo.score * 100).toFixed(1)}%</span>
+                            </div>
+                        `;
+                    });
+                    
+                    emotionsDiv.innerHTML = html;
+                } else {
+                    emotionsDiv.innerHTML = '<p>未检测到人脸</p>';
+                }
+                
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '❌ 错误: ' + error.message;
+                console.error('Test error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
