@@ -56,6 +56,7 @@ async def detect_emotion(req: EmoDetectRequest):
 
         # 转换为API响应格式
         faces = []
+        dominant = None
         for face_data in result["faces"]:
             # 计算情绪元数据
             emotions_full = face_data["emotions"]
