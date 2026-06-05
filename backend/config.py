@@ -72,7 +72,7 @@ EMOTION_AGENT_CONFIG = {
     }
 }
 
-# 20种情绪中文映射
+# 7种基础情绪中文映射（模型实际支持）
 EMOTION_CN_MAP = {
     "Neutral": "中性",
     "Happiness": "快乐",
@@ -80,27 +80,14 @@ EMOTION_CN_MAP = {
     "Surprise": "惊讶",
     "Fear": "恐惧",
     "Disgust": "厌恶",
-    "Anger": "愤怒",
-    "Contempt": "轻蔑",
-    "Confusion": "困惑",
-    "Embarrassment": "尴尬",
-    "Pride": "骄傲",
-    "Shame": "羞愧",
-    "Relief": "解脱",
-    "Interest": "兴趣",
-    "Boredom": "无聊",
-    "Anxiety": "焦虑",
-    "Calm": "平静",
-    "Excitement": "兴奋",
-    "Disappointment": "失望",
-    "Satisfaction": "满足"
+    "Anger": "愤怒"
 }
 
 # 情绪分类
 EMOTION_CATEGORIES = {
-    "POSITIVE": ["Happiness", "Pride", "Relief", "Interest", "Calm", "Excitement", "Satisfaction"],
-    "NEGATIVE": ["Sadness", "Fear", "Disgust", "Anger", "Contempt", "Embarrassment", "Shame", "Anxiety", "Disappointment", "Boredom"],
-    "NEUTRAL": ["Neutral", "Surprise", "Confusion"]
+    "POSITIVE": ["Happiness"],
+    "NEGATIVE": ["Sadness", "Fear", "Disgust", "Anger"],
+    "NEUTRAL": ["Neutral", "Surprise"]
 }
 
 # 提示词模板路径

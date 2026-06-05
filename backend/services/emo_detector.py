@@ -133,12 +133,10 @@ class EmoDetector:
             probabilities = torch.nn.functional.softmax(output, dim=1)
             probs = probabilities.cpu().numpy()[0]
 
-        # 20种情绪名称（与模型输出对应）
+        # 7种基础情绪名称（与模型输出对应）
         emotion_names = [
-            "Neutral", "Happiness", "Sadness", "Surprise", "Fear",
-            "Disgust", "Anger", "Contempt", "Confusion", "Embarrassment",
-            "Pride", "Shame", "Relief", "Interest", "Boredom",
-            "Anxiety", "Calm", "Excitement", "Disappointment", "Satisfaction"
+            "Neutral", "Happiness", "Sadness", "Surprise",
+            "Fear", "Disgust", "Anger"
         ]
 
         return {name: float(prob) for name, prob in zip(emotion_names, probs)}
