@@ -74,6 +74,12 @@ async def detect_emotion(req: EmoDetectRequest):
             else:
                 intensity = "轻微"
 
+            # 实时打印检测结果
+            top3_emotions = sorted(emotions_full.items(), key=lambda x: x[1], reverse=True)[:3]
+            print(f"[EMO] Detection: {EMOTION_CN_MAP.get(primary_emotion, primary_emotion)}({primary_score:.2%}) | "
+                  f"Top3: {', '.join([f'{EMOTION_CN_MAP.get(e, e)}:{s:.1%}' for e, s in top3_emotions])} | "
+                  f"Category: {category}, Intensity: {intensity}")
+
             # 添加到Agent分析器
             _emotion_agent["analyzer"].add_emotion({
                 "primary": primary_emotion,
@@ -85,6 +91,13 @@ async def detect_emotion(req: EmoDetectRequest):
             # 获取主导情绪和趋势
             dominant = _emotion_agent["analyzer"].get_dominant_emotion()
             trend = _emotion_agent["analyzer"].detect_change_pattern()
+
+            # 打印滑动窗口状态
+            if dominant:
+                window_size = len(_emotion_agent["analyzer"].emotion_history)
+                print(f"[EMO] Window: {window_size}/10 frames | "
+                      f"Dominant: {EMOTION_CN_MAP.get(dominant['emotion'], dominant['emotion'])}({dominant['ratio']:.1%}) | "
+                      f"Trend: {trend}")
 
             face_emotion = FaceEmotion(
                 box=face_data["box"],
