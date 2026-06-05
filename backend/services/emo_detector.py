@@ -1,7 +1,8 @@
 import torch
 import cv2
 import numpy as np
-import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
 from PIL import Image
 from torchvision import transforms
 from typing import Dict, List, Optional
@@ -32,12 +33,9 @@ class EmoDetector:
         self.model = None
         self._load_model()
 
-        # MediaPipe人脸检测
-        self.mp_face_detection = mp.solutions.face_detection
-        self.face_detection = self.mp_face_detection.FaceDetection(
-            model_selection=0,
-            min_detection_confidence=0.5
-        )
+        # MediaPipe人脸检测 - 使用新版API
+        # 注意：新版mediapipe不再支持solutions，使用cv2的Haar Cascade作为替代
+        self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
         # 图像预处理
         self.transform = transforms.Compose([
@@ -76,7 +74,7 @@ class EmoDetector:
 
     def _detect_faces(self, frame: np.ndarray) -> List[Dict]:
         """
-        使用MediaPipe检测人脸
+        使用OpenCV Haar Cascade检测人脸
 
         Args:
             frame: 输入图像 (BGR格式)
@@ -84,30 +82,30 @@ class EmoDetector:
         Returns:
             人脸列表，每个包含box坐标
         """
-        # 转换为RGB
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = self.face_detection.process(rgb_frame)
+        # 转换为灰度图
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # 检测人脸
+        faces_detected = self.face_cascade.detectMultiScale(
+            gray,
+            scaleFactor=1.1,
+            minNeighbors=5,
+            minSize=(30, 30)
+        )
 
         faces = []
-        if results.detections:
-            h, w = frame.shape[:2]
-            for detection in results.detections:
-                bbox = detection.location_data.relative_bounding_box
-                x = int(bbox.xmin * w)
-                y = int(bbox.ymin * h)
-                width = int(bbox.width * w)
-                height = int(bbox.height * h)
+        for (x, y, w, h) in faces_detected:
+            # 确保坐标在图像范围内
+            img_h, img_w = frame.shape[:2]
+            x = max(0, x)
+            y = max(0, y)
+            w = min(img_w - x, w)
+            h = min(img_h - y, h)
 
-                # 确保坐标在图像范围内
-                x = max(0, x)
-                y = max(0, y)
-                width = min(w - x, width)
-                height = min(h - y, height)
-
-                faces.append({
-                    "box": [x, y, width, height],
-                    "confidence": detection.score[0]
-                })
+            faces.append({
+                "box": [x, y, w, h],
+                "confidence": 0.9  # Haar Cascade不提供置信度，使用固定值
+            })
 
         return faces
 
