@@ -1,6 +1,17 @@
 import os
 
-DASHSCOPE_API_KEY = os.environ.get("DASHSCOPE_API_KEY")
+def get_dashscope_key():
+    """动态获取API Key，优先从数据库读取"""
+    try:
+        from backend.database import get_config
+        key = get_config("DASHSCOPE_API_KEY")
+        if key:
+            return key
+    except:
+        pass
+    return os.environ.get("DASHSCOPE_API_KEY")
+
+DASHSCOPE_API_KEY = get_dashscope_key()
 DASHSCOPE_API_URL = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation"
 LLM_MODEL = "qwen-turbo"
 LLM_MAX_TOKENS = 200

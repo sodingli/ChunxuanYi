@@ -25,11 +25,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from backend.routers import chat, reminder, vision, emo
+from backend.routers import chat, reminder, vision, emo, config
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(reminder.router, prefix="/api/reminder", tags=["reminder"])
 app.include_router(vision.router, prefix="/api/vision", tags=["vision"])
 app.include_router(emo.router, prefix="/api/emo", tags=["emo"])
+app.include_router(config.router, prefix="/api/config", tags=["config"])
 
 frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
 if os.path.isdir(frontend_dir):

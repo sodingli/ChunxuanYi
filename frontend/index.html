@@ -536,6 +536,7 @@
                     <button class="tab-btn" data-tab="emotion">😊 情感</button>
                     <button class="tab-btn" data-tab="health">❤️ 健康</button>
                     <button class="tab-btn" data-tab="character">👤 角色</button>
+                    <button class="tab-btn" data-tab="settings">⚙️ 设置</button>
                 </div>
                 
                 <div class="tab-content active" id="memoryTab">
@@ -630,6 +631,26 @@
                                 <textarea id="characterCustom" rows="3" placeholder="特殊要求">主动关心身体和饮食</textarea>
                             </div>
                             <button onclick="saveCharacter()" style="width: 100%; margin-top: 15px;">保存角色设置</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="settingsTab">
+                    <div class="memory-section">
+                        <h4>API配置</h4>
+                        <div class="character-form">
+                            <div class="form-group">
+                                <label>通义千问 API Key</label>
+                                <input type="password" id="dashscopeKey" placeholder="sk-..." />
+                                <small style="color: #7f8c8d; font-size: 11px;">用于AI对话功能</small>
+                            </div>
+                            <div class="form-group">
+                                <label>和风天气 API Key（可选）</label>
+                                <input type="text" id="qweatherKey" placeholder="输入API Key" />
+                                <small style="color: #7f8c8d; font-size: 11px;">用于天气查询功能</small>
+                            </div>
+                            <button onclick="saveSettings()" style="width: 100%; margin-top: 15px;">保存配置</button>
+                            <button onclick="loadSettings()" style="width: 100%; margin-top: 10px; background: #95a5a6;">加载配置</button>
                         </div>
                     </div>
                 </div>
@@ -1250,7 +1271,69 @@
             errorDiv.classList.add('show');
             setTimeout(() => { errorDiv.classList.remove('show'); }, 5000);
         }
-        
+
+        // 保存配置
+        async function saveSettings() {
+            const dashscopeKey = document.getElementById('dashscopeKey').value.trim();
+            const qweatherKey = document.getElementById('qweatherKey').value.trim();
+
+            try {
+                if (dashscopeKey) {
+                    await fetch(`${API_BASE}/config/configs`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            key: 'DASHSCOPE_API_KEY',
+                            value: dashscopeKey,
+                            description: '通义千问API密钥',
+                            is_sensitive: true
+                        })
+                    });
+                }
+
+                if (qweatherKey) {
+                    await fetch(`${API_BASE}/config/configs`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            key: 'QWEATHER_KEY',
+                            value: qweatherKey,
+                            description: '和风天气API密钥',
+                            is_sensitive: true
+                        })
+                    });
+                }
+
+                showNotification('配置已保存！');
+                document.getElementById('dashscopeKey').value = '';
+                document.getElementById('qweatherKey').value = '';
+            } catch (err) {
+                console.error('保存配置失败:', err);
+                showError('保存失败: ' + err.message);
+            }
+        }
+
+        // 加载配置
+        async function loadSettings() {
+            try {
+                const resp = await fetch(`${API_BASE}/config/configs?include_sensitive=true`);
+                const data = await resp.json();
+
+                if (data.configs.DASHSCOPE_API_KEY) {
+                    document.getElementById('dashscopeKey').value = data.configs.DASHSCOPE_API_KEY.value || '';
+                }
+
+                if (data.configs.QWEATHER_KEY) {
+                    document.getElementById('qweatherKey').value = data.configs.QWEATHER_KEY.value || '';
+                }
+
+                showNotification('配置已加载！');
+            } catch (err) {
+                console.error('加载配置失败:', err);
+                showError('加载失败: ' + err.message);
+            }
+        }
+
         // 页面加载
         window.addEventListener('load', () => {
             initMemory();
