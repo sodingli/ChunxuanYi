@@ -13,7 +13,6 @@ class EventBus:
 
     def __init__(self):
         self._handlers: Dict[str, List[Callable]] = {}
-        self._lock = asyncio.Lock()
 
     def subscribe(self, event_type: str, handler: Callable) -> None:
         """
@@ -39,6 +38,13 @@ class EventBus:
             except ValueError:
                 pass
 
+    async def _safe_execute_handler(self, handler: Callable, event_data: Any, event_type: str) -> None:
+        """Execute handler with exception handling"""
+        try:
+            await handler(event_data)
+        except Exception as e:
+            logger.error(f"Handler for {event_type} failed: {e}", exc_info=True)
+
     async def publish(self, event_type: str, event_data: Any) -> None:
         """
         发布事件（异步非阻塞）
@@ -56,7 +62,9 @@ class EventBus:
         tasks = []
         for handler in handlers:
             try:
-                task = asyncio.create_task(handler(event_data))
+                task = asyncio.create_task(
+                    self._safe_execute_handler(handler, event_data, event_type)
+                )
                 tasks.append(task)
             except Exception as e:
                 logger.error(f"Error creating task for {event_type}: {e}")
