@@ -75,7 +75,7 @@ class Memory(Base):
         default="general",
         comment="记忆类型：preference/event/general"
     )
-    importance = Column(Integer, nullable=False, default=5, comment="重要性(1-10)")
+    importance = Column(Integer, nullable=False, default=1, comment="重要性(1-10)")
     timestamp = Column(
         DateTime,
         nullable=False,
@@ -109,7 +109,7 @@ class Reminder(Base):
     status = Column(
         String(20),
         nullable=False,
-        default="pending",
+        default="active",
         comment="状态：pending/completed/cancelled"
     )
     created_at = Column(
