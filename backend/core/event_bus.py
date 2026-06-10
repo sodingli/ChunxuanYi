@@ -65,6 +65,6 @@ class EventBus:
         if tasks:
             logger.debug(f"Published {event_type} to {len(tasks)} handlers")
 
-    def get_subscribers(self, event_type: str) -> int:
-        """获取订阅者数量（用于调试）"""
-        return len(self._handlers.get(event_type, []))
+    def get_subscribers(self, event_type: str) -> List[Callable]:
+        """获取订阅者列表（用于调试）"""
+        return self._handlers.get(event_type, []).copy()
