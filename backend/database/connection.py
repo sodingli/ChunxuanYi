@@ -4,7 +4,7 @@
 """
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
 # 从环境变量读取数据库URL，默认使用SQLite
 DATABASE_URL = os.getenv(
@@ -30,7 +30,9 @@ SessionLocal = sessionmaker(
 )
 
 # 创建Base类，所有模型都继承自它
-Base = declarative_base()
+class Base(DeclarativeBase):
+    """Base class for all database models"""
+    pass
 
 
 # FastAPI依赖注入用的数据库会话生成器
